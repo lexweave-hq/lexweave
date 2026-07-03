@@ -1,6 +1,6 @@
 {
   "name": "@lexweave/compile",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Compile pipeline for Lexweave — turn a whole book into a portable, progressively bilingual Learning Edition bundle with any LLM (Anthropic, OpenAI, local) behind one port. Compile once, render many.",
   "keywords": [
     "language-learning",
@@ -26,7 +26,7 @@
     "prepublishOnly": "tsc -b"
   },
   "dependencies": {
-    "@lexweave/core": "^0.1.1"
+    "@lexweave/core": "^0.2.0"
   },
   "devDependencies": {
     "typescript": "~5.9.2"

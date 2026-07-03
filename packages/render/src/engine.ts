@@ -38,6 +38,17 @@ const isCjk = (ch: string): boolean => {
   )
 }
 const isLatinAlnum = (ch: string): boolean => !!ch && ch >= ' ' && /[0-9A-Za-z]/.test(ch)
+
+// Perceived width of a string on the page: a Han ideograph is roughly twice as
+// wide as a Latin glyph. The coverage budget counts what the reader SEES — an
+// injected English display is far longer in glyphs than the CJK span it covers,
+// so counting source chars would under-bill A1/A2 glosses by 2–4× and let a
+// "12% coverage" page render a third English.
+const visualWidth = (s: string): number => {
+  let w = 0
+  for (const ch of s) w += isCjk(ch) ? 2 : 1
+  return w
+}
 // A space belongs between a Han character and adjacent Latin/digits, in either
 // order — so an injected English word reads "无法 enter 脑海", not "无法enter脑海".
 export const needsPanguSpace = (a: string, b: string): boolean =>
@@ -103,12 +114,12 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
       return {output: markup, appliedSources: []}
     }
     const applied = new Set<string>()
-    // Per-section spatial budget over the section's VISIBLE text length (markup
-    // stripped). limit=Infinity when coverage is uncapped so the checks are
-    // free. Shared across every text run of this section.
-    const visibleLen = markup.replace(/<[^>]*>/g, '').length
+    // Per-section spatial budget over the section's VISIBLE width (markup
+    // stripped, CJK≈2/Latin≈1). limit=Infinity when coverage is uncapped so the
+    // checks are free. Shared across every text run of this section.
     const budget: SectionBudget = {
-      limit: coverage >= 1 ? Infinity : Math.floor(visibleLen * coverage),
+      limit:
+        coverage >= 1 ? Infinity : Math.floor(visualWidth(markup.replace(/<[^>]*>/g, '')) * coverage),
       replaced: 0,
       lastEnd: -Infinity,
       cursor: 0,
@@ -130,6 +141,7 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
     }
     while (i < text.length) {
       let matched: ReplacementRule | null = null
+      let display = ''
       // rules are kept sorted longest-first, so the first hit is the longest
       // match at this position.
       for (const r of rules) {
@@ -139,27 +151,44 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
         const limit =
           typeof r.maxCount === 'number' && r.maxCount > 0 ? Math.floor(r.maxCount) : Infinity
         if ((usage.get(key) ?? 0) >= limit) continue
+        const candidateDisplay = levelDisplay(
+          r.from,
+          String(r.to),
+          typeof r.level === 'number' ? r.level : 3
+        )
         // Spatial density budget: skip a candidate that sits too close to the
-        // previous replacement (min-gap) or that would push section coverage
-        // past the cap.
-        const pos = budget.cursor + i
-        if (pos - budget.lastEnd < minGap) continue
-        if (budget.replaced + r.from.length > budget.limit) continue
+        // previous replacement (min-gap) or whose DISPLAY width would push
+        // section coverage past the cap. Retired (mastered) rules are
+        // budget-transparent: they render as bare target text the reader
+        // already knows, so they cost no attention and must never crowd out —
+        // or be crowded out by — words still being learned.
+        if (!r.retired) {
+          const pos = budget.cursor + i
+          if (pos - budget.lastEnd < minGap) continue
+          if (budget.replaced + visualWidth(candidateDisplay) > budget.limit) continue
+        }
         matched = r
+        display = candidateDisplay
         break
       }
       if (matched) {
         const key = replacementKey(matched)
         usage.set(key, (usage.get(key) ?? 0) + 1)
-        const pos = budget.cursor + i
-        budget.lastEnd = pos + matched.from.length
-        budget.replaced += matched.from.length
+        if (!matched.retired) {
+          const pos = budget.cursor + i
+          budget.lastEnd = pos + matched.from.length
+          budget.replaced += visualWidth(display)
+        }
         applied.add(matched.from)
-        const to = String(matched.to)
         const lv = typeof matched.level === 'number' ? matched.level : 3
-        const display = levelDisplay(matched.from, to, lv)
         emit(
-          renderMatch({from: matched.from, to, level: lv, display}),
+          renderMatch({
+            from: matched.from,
+            to: String(matched.to),
+            level: lv,
+            display,
+            retired: !!matched.retired,
+          }),
           display[0],
           display[display.length - 1]
         )

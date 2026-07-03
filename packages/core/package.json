@@ -1,6 +1,6 @@
 {
   "name": "@lexweave/core",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Core engine for Lexweave — compile long-form text into a progressively bilingual learning edition (diglot weave / graded reader): language-unit model, flow budget, action levels, replacement planner, learner state.",
   "keywords": [
     "language-learning",

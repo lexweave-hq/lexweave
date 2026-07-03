@@ -27,9 +27,14 @@ export const DEFAULT_DENSITY = 0.55
 const MIN_DENSITY = 0.15
 const MAX_DENSITY = 1
 
-// A word whose mastery has accrued this far has done its job — stop replacing it.
+// A word whose mastery has accrued this far has graduated: it keeps rendering
+// as bare target text (A4, tap still reveals the source) but stops occupying a
+// learning slot in the density budget. Graduation must never send a word back
+// to source — the page's target-language share only ever grows.
 export const MASTERY_RETIRE = 3
-// A word the reader keeps tapping open is causing friction — stop replacing it.
+// A word the reader keeps tapping open WHILE LEARNING is causing friction —
+// stop replacing it. Never applied to mastered words: tapping those is a
+// recall check, not friction.
 export const FRICTION_DROP = 4
 
 // CJK reading-speed reference points (characters per minute of active reading).

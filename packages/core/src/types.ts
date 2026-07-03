@@ -330,22 +330,6 @@ export type BookStrategy = {
   note?: string
 }
 
-export type RenderSegmentResult = {
-  segmentId: string
-  runs: (
-    | {type: 'source'; text: string}
-    | {
-        type: 'replacement'
-        expressionId: string
-        sourceText: string
-        displayText: string
-        explainable: boolean
-        /** AES action level this word is surfaced at (scaffolding amount). */
-        level: ActionLevel
-      }
-  )[]
-}
-
 export type ReadingInteractionEvent = {
   type: 'seen' | 'replaced' | 'explain_opened' | 'backtrack' | 'long_dwell'
   userId: string

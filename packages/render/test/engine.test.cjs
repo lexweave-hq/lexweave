@@ -69,14 +69,49 @@ test('minGap thins adjacent replacements', () => {
   assert.ok(count(gapped.output, 'ss') < 5)
 })
 
-test('coverage caps the share of replaced characters', () => {
-  const text = '灵石。'.repeat(30)
+test('coverage caps the visible-width share of replacement display text', () => {
+  const text = '灵石。'.repeat(30) // 90 CJK chars → visible width 180
   const {output} = transformText(text, [{from: '灵石', to: 'ss', level: 3}], {
     density: {coverage: 0.2},
   })
-  const replaced = count(output, 'ss') * 2 // chars of source consumed
-  assert.ok(replaced <= Math.floor(text.length * 0.2))
-  assert.ok(replaced > 0)
+  const replacedWidth = count(output, 'ss') * 2 // 'ss' display width (Latin ≈ 1 each)
+  assert.ok(replacedWidth <= 180 * 0.2)
+  assert.ok(replacedWidth > 0)
+})
+
+test('coverage bills the rendered display width, not the source span it covers', () => {
+  const text = '灵石'.repeat(10) // 20 source chars → visible width 40
+  const {output} = transformText(text, [{from: '灵石', to: 'extraordinarily', level: 4}], {
+    density: {coverage: 0.5, minGap: 0},
+  })
+  // Budget is 20 width units; each display costs 15, so only ONE fits. Under
+  // source-span accounting (2 chars each) five would have — the page would
+  // render far denser than the coverage knob claims.
+  assert.equal(count(output, 'extraordinarily'), 1)
+})
+
+test('retired (mastered) rules ignore the spatial budget entirely', () => {
+  const text = '灵石灵石灵石灵石灵石'
+  const {output} = transformText(text, [{from: '灵石', to: 'ss', level: 4, retired: true}], {
+    density: {coverage: 0.01, minGap: 100},
+  })
+  assert.equal(count(output, 'ss'), 5)
+})
+
+test('retired rules consume no coverage, so learning words still surface', () => {
+  const text = '灵石灵石灵石灵石灵石心法'
+  const {output} = transformText(
+    text,
+    [
+      {from: '灵石', to: 'spirit', level: 4, retired: true},
+      {from: '心法', to: 'method', level: 3},
+    ],
+    {density: {coverage: 0.5, minGap: 0}}
+  )
+  // All five mastered occurrences render, and the learning word still fits:
+  // width budget is 12 (24 × 0.5) and the retired spans billed none of it.
+  assert.equal(count(output, 'spirit'), 5)
+  assert.match(output, /method/)
 })
 
 test('maxCount usage window persists across sections until reset', () => {

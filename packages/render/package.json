@@ -1,6 +1,6 @@
 {
   "name": "@lexweave/render",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Deterministic renderer for Lexweave learning editions — inject progressive bilingual replacements into HTML or plain text with spatial density control (coverage + min-gap). Zero dependencies; runs in browsers, WebViews, and Node.",
   "keywords": [
     "language-learning",

@@ -8,3 +8,6 @@ examples/demo/*.lexweave.json
 examples/demo/*.html
 
 .DS_Store
+
+# local test books — never commit book files
+*.epub
