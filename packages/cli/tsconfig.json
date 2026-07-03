@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "lib": ["ES2021"],
+    "types": ["node"],
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@lexweave/core": ["../core/src"],
+      "@lexweave/compile": ["../compile/src"],
+      "@lexweave/render": ["../render/src"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

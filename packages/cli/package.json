@@ -1,0 +1,50 @@
+{
+  "name": "lexweave",
+  "version": "0.1.0",
+  "description": "Turn any long-form text into a progressively bilingual learning edition (diglot weave / graded reader) from the command line — compile once with an LLM, render offline forever.",
+  "keywords": [
+    "language-learning",
+    "diglot-weave",
+    "graded-reader",
+    "bilingual-reading",
+    "immersion",
+    "comprehensible-input",
+    "cli",
+    "epub",
+    "novel"
+  ],
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "bin": {
+    "lexweave": "./dist/lexweave.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "node build.cjs"
+  },
+  "dependencies": {
+    "@lexweave/compile": "0.1.0",
+    "@lexweave/core": "0.1.0",
+    "@lexweave/render": "0.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "aijie",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexweave-hq/lexweave.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/lexweave-hq/lexweave/tree/main/packages/cli#readme",
+  "bugs": "https://github.com/lexweave-hq/lexweave/issues"
+}

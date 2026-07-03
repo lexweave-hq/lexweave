@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    name: node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build packages + CLI
+        run: npm run build
+
+      - name: Typecheck CLI
+        run: npm run typecheck:cli
+
+      - name: Unit tests
+        run: npm test
+
+      - name: End-to-end offline demo (mock provider)
+        run: |
+          npm run demo
+          # the rendered edition must contain a scaffolded replacement span
+          grep -q 'class="ai-rep"' examples/demo/sample-book.html
+          grep -q 'spirit stone' examples/demo/sample-book.html
+          # names must stay in source
+          if grep -q 'Lin Zhao' examples/demo/sample-book.html; then
+            echo "proper noun was replaced — must stay in source" && exit 1
+          fi
+
+      - name: Pack check (publishable artifacts)
+        run: |
+          for pkg in core compile render cli; do
+            npm pack --dry-run -w packages/$pkg > /dev/null
+          done

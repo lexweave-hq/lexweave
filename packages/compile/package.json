@@ -1,0 +1,45 @@
+{
+  "name": "@lexweave/compile",
+  "version": "0.1.0",
+  "description": "Compile pipeline for Lexweave — turn a whole book into a portable, progressively bilingual Learning Edition bundle with any LLM (Anthropic, OpenAI, local) behind one port. Compile once, render many.",
+  "keywords": [
+    "language-learning",
+    "diglot-weave",
+    "graded-reader",
+    "bilingual-reading",
+    "immersion",
+    "llm",
+    "compiler",
+    "comprehensible-input"
+  ],
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "dependencies": {
+    "@lexweave/core": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  },
+  "author": "aijie",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexweave-hq/lexweave.git",
+    "directory": "packages/compile"
+  },
+  "homepage": "https://github.com/lexweave-hq/lexweave/tree/main/packages/compile#readme",
+  "bugs": "https://github.com/lexweave-hq/lexweave/issues"
+}

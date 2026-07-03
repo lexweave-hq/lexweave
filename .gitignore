@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+
+# generated demo outputs (npm run demo recreates them)
+examples/demo/*.lexweave.json
+examples/demo/*.html
+
+.DS_Store

@@ -1,0 +1,41 @@
+{
+  "name": "@lexweave/render",
+  "version": "0.1.0",
+  "description": "Deterministic renderer for Lexweave learning editions — inject progressive bilingual replacements into HTML or plain text with spatial density control (coverage + min-gap). Zero dependencies; runs in browsers, WebViews, and Node.",
+  "keywords": [
+    "language-learning",
+    "diglot-weave",
+    "graded-reader",
+    "bilingual-reading",
+    "immersion",
+    "renderer",
+    "epub"
+  ],
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  },
+  "author": "aijie",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexweave-hq/lexweave.git",
+    "directory": "packages/render"
+  },
+  "homepage": "https://github.com/lexweave-hq/lexweave/tree/main/packages/render#readme",
+  "bugs": "https://github.com/lexweave-hq/lexweave/issues"
+}

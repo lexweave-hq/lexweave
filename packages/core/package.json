@@ -1,0 +1,46 @@
+{
+  "name": "@lexweave/core",
+  "version": "0.1.0",
+  "description": "Core engine for Lexweave — compile long-form text into a progressively bilingual learning edition (diglot weave / graded reader): language-unit model, flow budget, action levels, replacement planner, learner state.",
+  "keywords": [
+    "language-learning",
+    "diglot-weave",
+    "graded-reader",
+    "bilingual-reading",
+    "immersion",
+    "comprehensible-input",
+    "vocabulary",
+    "reading",
+    "i-plus-1"
+  ],
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  },
+  "author": "aijie",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexweave-hq/lexweave.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/lexweave-hq/lexweave/tree/main/packages/core#readme",
+  "bugs": "https://github.com/lexweave-hq/lexweave/issues"
+}

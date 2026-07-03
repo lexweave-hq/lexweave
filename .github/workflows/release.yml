@@ -1,0 +1,47 @@
+# Publish all four packages to npm when a version tag is pushed.
+#
+# Setup (once):
+#   1. npm org "lexweave" must exist and your npm account must be a member.
+#   2. Create a granular npm token with publish rights for lexweave + @lexweave/*
+#      and add it as the NPM_TOKEN repository secret.
+#
+# Release flow:
+#   npm version 0.x.y -ws --include-workspace-root
+#   git commit -am "release: v0.x.y" && git tag v0.x.y && git push --follow-tags
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: npm ci
+
+      - name: Build + test
+        run: |
+          npm run build
+          npm test
+
+      - name: Publish (dependency order, with provenance)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in core render compile cli; do
+            npm publish --provenance -w packages/$pkg
+          done

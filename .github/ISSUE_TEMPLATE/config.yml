@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question / discussion
+    url: https://github.com/lexweave-hq/lexweave/discussions
+    about: Usage questions, language-pair ideas, and show-and-tell belong in Discussions.

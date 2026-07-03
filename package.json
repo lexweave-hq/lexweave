@@ -1,0 +1,26 @@
+{
+  "name": "lexweave-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lexweave — turn any long-form text into a progressively bilingual learning edition (diglot weave / graded reader engine).",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/tsconfig.json && node packages/cli/build.cjs",
+    "test": "tsc -b packages/tsconfig.json && node --test packages/core/test/*.test.cjs packages/compile/test/*.test.cjs packages/render/test/*.test.cjs",
+    "typecheck:cli": "tsc -p packages/cli/tsconfig.json --noEmit",
+    "demo": "npm run demo:compile && npm run demo:render",
+    "demo:compile": "node packages/cli/dist/lexweave.cjs compile examples/demo/sample-book.txt --source zh --target en --provider mock --glossary examples/demo/glossary.json -o examples/demo/sample-book.lexweave.json",
+    "demo:render": "node packages/cli/dist/lexweave.cjs render examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o examples/demo/sample-book.html"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.1",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.9.8"
+}
