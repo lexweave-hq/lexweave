@@ -150,8 +150,11 @@ test('densityRenderOptions maps the budget onto bounded spatial controls', () =>
   const high = densityRenderOptions(1)
   assert.equal(low.coverage, 0.15)
   assert.equal(low.minGap, 24)
-  assert.equal(high.coverage, 0.95)
+  // Full density means FULL: uncapped coverage so a complete-translation
+  // substrate can flip the entire page.
+  assert.equal(high.coverage, 1)
   assert.equal(high.minGap, 0)
+  assert.ok(densityRenderOptions(0.9).coverage < 1)
   const fallback = densityRenderOptions(NaN)
   assert.ok(fallback.coverage > 0.15 && fallback.coverage < 0.95)
 })

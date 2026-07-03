@@ -4,7 +4,8 @@ import {
   expressionTier,
   FRICTION_DROP,
   MASTERY_RETIRE,
-  unlockedTiers,
+  tierQuotas,
+  type UnitTier,
 } from './flow-budget'
 import {isFunctionWord} from './stopwords'
 import type {
@@ -102,6 +103,8 @@ export type RuntimeReplacement = {
    * attention and cannot crowd out words still being learned.
    */
   retired?: boolean
+  /** Macro tier this rule replaces at (word / phrase / sentence). */
+  tier?: UnitTier
 }
 
 /**
@@ -130,11 +133,6 @@ export function planReplacements(
     .map((expression) => expression.sourceText)
     .filter((source) => source.length >= 2)
 
-  // Macro-progression: only surface unit tiers the reader has unlocked (words
-  // always; phrases once enough words are mastered; sentences once enough
-  // phrases are). The unit grows with proficiency, not just its scaffolding.
-  const tiers = unlockedTiers(expressions, sessionState.memory, resolvedOptions.masteryBonus)
-
   const eligible: {
     from: string
     to: string
@@ -142,20 +140,28 @@ export function planReplacements(
     priority: number
     level: ActionLevel
     retired: boolean
+    tier: UnitTier
+    readiness: number
   }[] = []
   for (const expression of expressions) {
-    if (!tiers.has(expressionTier(expression.kind))) {
-      continue
-    }
+    const tier = expressionTier(expression.kind)
     if (!isFlowEligible(expression, sessionState, resolvedOptions)) {
       continue
     }
-    // Cross-word-boundary n-gram glued to a structural particle (的非凡者, 灰雾之).
-    if (isBoundaryFragment(expression.sourceText)) {
-      continue
-    }
-    if (!resolvedOptions.replaceNamedEntities && overlapsName(expression.sourceText, nameSources)) {
-      continue
+    // Word/phrase guards against n-gram scanner artifacts. Whole sentences are
+    // exempt: a full-translation substrate segment legitimately starts anywhere
+    // and CONTAINS character names (its translation renders them per glossary).
+    if (tier !== 'sentence') {
+      // Cross-word-boundary n-gram glued to a structural particle (的非凡者, 灰雾之).
+      if (isBoundaryFragment(expression.sourceText)) {
+        continue
+      }
+      if (
+        !resolvedOptions.replaceNamedEntities &&
+        overlapsName(expression.sourceText, nameSources)
+      ) {
+        continue
+      }
     }
     const candidate = expression.candidates
       .filter((item) => item.targetLanguage === sessionState.targetLanguage)
@@ -163,7 +169,11 @@ export function planReplacements(
     if (!candidate || candidate.confidence < resolvedOptions.minCandidateConfidence) {
       continue
     }
-    const to = pickPrimaryTarget(candidate.targetText)
+    // pickPrimaryTarget strips synonym lists ("divination / fortune-telling")
+    // from word/phrase translations — but a whole-sentence translation contains
+    // commas and slashes legitimately, so it passes through verbatim.
+    const to =
+      tier === 'sentence' ? candidate.targetText.trim() : pickPrimaryTarget(candidate.targetText)
     if (!to || to === expression.sourceText) {
       continue
     }
@@ -178,6 +188,8 @@ export function planReplacements(
       priority: expressionFlowPriority(expression),
       level: computeActionLevel(expression, stats, resolvedOptions.masteryBonus),
       retired: (stats?.masteryScore ?? 0) >= MASTERY_RETIRE,
+      tier,
+      readiness: 0,
     })
   }
 
@@ -195,19 +207,64 @@ export function planReplacements(
       )
   )
 
-  // Flow-first: density governs how many DISTINCT words are being LEARNED at
-  // once (highest-priority signature vocab first); each then replaces at every
-  // occurrence so it repeats enough to be learned. There is no quota to fill — a
-  // low budget simply means a smaller set, so a whole book may only ever replace
-  // a small slice. Retired (mastered) words ride along OUTSIDE the cap: they
-  // stay on the page as bare target text forever — mastery grows the English on
-  // the page, it never shrinks it back to source.
+  // Flow-first, per tier. Density governs how many DISTINCT units are being
+  // LEARNED at once; each then replaces at every occurrence so it repeats
+  // enough to be learned. Retired (mastered) units of ANY tier ride along
+  // OUTSIDE the caps: mastery grows the target language on the page, it never
+  // shrinks it back to source.
+  //
+  // Words lead (signature vocabulary first). Phrases and sentences are
+  // admitted through two continuous mechanisms so the ladder has no cliff:
+  //  - QUOTA (how many): mastery of the tier below EARNS slots (tierQuotas),
+  //    so larger units trickle in as smaller ones graduate.
+  //  - READINESS (which ones): a unit whose text is already largely covered by
+  //    surfaces the reader reads in the target language (retired, or shown
+  //    target-primary at A3+) flips first — the reader has pre-paid most of
+  //    its cognitive cost (comprehensible input, i+1). This also scatters
+  //    flips to wherever mastered vocabulary clusters, instead of marching
+  //    through the book in document order.
   const retiredPairs = kept.filter((pair) => pair.retired)
-  const learningPairs = kept
-    .filter((pair) => !pair.retired)
-    .sort((left, right) => right.priority - left.priority)
-  const maxDistinct = Math.max(MIN_FLOW_WORDS, Math.round(density * learningPairs.length))
-  kept = [...retiredPairs, ...learningPairs.slice(0, maxDistinct)]
+  const learningPairs = kept.filter((pair) => !pair.retired)
+
+  const knownSources = kept
+    .filter((pair) => pair.tier !== 'sentence' && (pair.retired || pair.level >= 3))
+    .map((pair) => pair.from)
+  const readinessOf = (text: string): number => {
+    if (knownSources.length === 0 || text.length === 0) {
+      return 0
+    }
+    let covered = 0
+    for (const source of knownSources) {
+      let at = text.indexOf(source)
+      while (at !== -1) {
+        covered += source.length
+        at = text.indexOf(source, at + source.length)
+      }
+    }
+    return Math.min(1, covered / text.length)
+  }
+  for (const pair of learningPairs) {
+    if (pair.tier !== 'word') {
+      pair.readiness = readinessOf(pair.from)
+    }
+  }
+
+  const byPriority = (left: (typeof kept)[number], right: (typeof kept)[number]) =>
+    right.priority - left.priority
+  const byReadiness = (left: (typeof kept)[number], right: (typeof kept)[number]) =>
+    right.readiness - left.readiness || right.priority - left.priority
+
+  const quotas = tierQuotas(expressions, sessionState.memory, resolvedOptions.masteryBonus)
+  const words = learningPairs.filter((pair) => pair.tier === 'word').sort(byPriority)
+  const phrases = learningPairs.filter((pair) => pair.tier === 'phrase').sort(byReadiness)
+  const sentences = learningPairs.filter((pair) => pair.tier === 'sentence').sort(byReadiness)
+
+  kept = [
+    ...retiredPairs,
+    ...words.slice(0, Math.max(MIN_FLOW_WORDS, Math.round(density * words.length))),
+    ...phrases.slice(0, Math.round(density * Math.min(quotas.phrases, phrases.length))),
+    ...sentences.slice(0, Math.round(density * Math.min(quotas.sentences, sentences.length))),
+  ]
 
   // NOTE: local page density (spacing / "not every sentence") is enforced at
   // render time by the WebView's per-section spatial budget (min-gap + coverage),
@@ -220,7 +277,7 @@ export function planReplacements(
 
   // Longest source first so a longer phrase/sentence wins over its own substrings.
   return kept
-    .map(({from, to, level, retired}) => ({from, to, level, retired}))
+    .map(({from, to, level, retired, tier}) => ({from, to, level, retired, tier}))
     .sort((left, right) => right.from.length - left.from.length)
 }
 

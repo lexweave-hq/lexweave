@@ -7,6 +7,7 @@ import {
   type ContentKind,
 } from '@lexweave/core'
 import {addLlmUsage, normalizeLlmUsage, type LexweaveLlm, type LlmUsage} from './ports'
+import {translateDocumentSegments} from './translate'
 import {
   buildChunkPayload,
   chunkDocument,
@@ -34,6 +35,17 @@ export type CompileOptions = {
   /** Max characters of book text per LLM call. */
   chunkChars?: number
   onProgress?: (progress: CompileProgress) => void
+  /**
+   * Full-translation substrate: additionally translate EVERY segment
+   * (glossary-consistent, batched) and carry each one as a sentence-tier unit,
+   * so density 1.0 with all tiers unlocked renders the whole book in the
+   * target language. Costs O(book) LLM tokens — the extraction passes alone
+   * are output-bound and much cheaper.
+   */
+  fullTranslation?: boolean
+  /** Concurrent in-flight calls for the full-translation pass (default 4). */
+  translationConcurrency?: number
+  onTranslateProgress?: (done: number, total: number) => void
 }
 
 export type CompileResult = {
@@ -42,6 +54,8 @@ export type CompileResult = {
   /** Units whose verbatim span never matched the book text (model drift). */
   droppedUnlocatable: number
   chunkCount: number
+  /** Full-translation pass only: segments the model failed to echo back. */
+  translationMissing?: number
 }
 
 /**
@@ -85,6 +99,37 @@ export async function compileDocument(
       usage: normalizeLlmUsage(result.usage),
       elapsedMs: Date.now() - startedAt,
     })
+  }
+
+  // Full-translation substrate: every segment becomes a sentence-tier unit at
+  // salience 'common', translated with the extracted signature vocabulary as a
+  // consistency glossary. Signature units stay the FRONT of the weave; the
+  // substrate is its ceiling (density 1.0 + unlocked tiers = whole book in the
+  // target language).
+  let translationMissing: number | undefined
+  if (options.fullTranslation) {
+    const glossary = buildConsistencyGlossary(units)
+    const translated = await translateDocumentSegments(document, {
+      llm: options.llm,
+      glossary,
+      concurrency: options.translationConcurrency,
+      onProgress: (done, total) => options.onTranslateProgress?.(done, total),
+    })
+    usage = addLlmUsage(usage, translated.usage)
+    translationMissing = translated.missing
+    for (const segment of translated.segments) {
+      units.push({
+        span: segment.sourceText,
+        evidence: segment.sourceText,
+        translation: segment.translation,
+        tier: 'sentence',
+        keepSource: false,
+        risk: 'low',
+        plotCriticality: 'low',
+        reason: 'full-translation substrate',
+        salience: 'common',
+      })
+    }
   }
 
   // Cross-chunk repeats of one span collapse in the map step (dedup by verbatim
@@ -137,7 +182,29 @@ export async function compileDocument(
     usage,
     droppedUnlocatable: assets.droppedUnlocatable,
     chunkCount: chunks.length,
+    translationMissing,
   }
+}
+
+// The extracted units double as the translation pass's consistency glossary:
+// names keep their canonical rendering, signature vocabulary its canonical
+// translation, so 灵石 is "spirit stone" in every translated sentence too.
+function buildConsistencyGlossary(units: ReadingUnit[]): {source: string; target: string}[] {
+  const seen = new Set<string>()
+  const glossary: {source: string; target: string}[] = []
+  for (const unit of units) {
+    const source = unit.span?.trim()
+    const target = unit.translation?.trim()
+    if (!source || !target || unit.tier === 'sentence' || seen.has(source)) {
+      continue
+    }
+    seen.add(source)
+    glossary.push({source, target})
+    if (glossary.length >= 120) {
+      break
+    }
+  }
+  return glossary
 }
 
 export type CompileTextInput = {

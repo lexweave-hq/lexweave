@@ -43,6 +43,18 @@ export function createMockLlm(entries: MockGlossaryEntry[]): LexweaveLlm {
         usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0},
       }
     },
+    // Deterministic placeholder substrate so --full works offline: obviously
+    // fake "[en] …" translations, with glossary terms swapped in for realism.
+    async translateSegments(payload) {
+      const translations = payload.segments.map((segment) => {
+        let text = segment.text
+        for (const entry of payload.glossary) {
+          text = text.split(entry.source).join(entry.target)
+        }
+        return {index: segment.index, translation: `[en] ${text}`}
+      })
+      return {translations, usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0}}
+    },
   }
 }
 

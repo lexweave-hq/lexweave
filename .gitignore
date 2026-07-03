@@ -11,3 +11,4 @@ examples/demo/*.html
 
 # local test books — never commit book files
 *.epub
+books/

@@ -102,8 +102,27 @@ export type ReplacementEngine = {
   transformSection(markup: string): TransformResult
 }
 
+// First-character index over the (longest-first) rule list. The matcher probes
+// every text position; with a full-translation substrate a book carries
+// thousands of rules, so scanning the whole list per position is O(chars ×
+// rules). Bucketing by first char keeps each probe at the handful of rules
+// that could possibly match there, preserving longest-first order (two rules
+// competing at one position necessarily share their first character).
+const bucketRules = (rules: ReplacementRule[]): Map<string, ReplacementRule[]> => {
+  const buckets = new Map<string, ReplacementRule[]>()
+  for (const r of rules) {
+    const key = r.from[0]
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(r)
+    else buckets.set(key, [r])
+  }
+  return buckets
+}
+const NO_RULES: ReplacementRule[] = []
+
 export function createReplacementEngine(options: ReplacementEngineOptions = {}): ReplacementEngine {
   let rules = sortReplacementRules(options.rules ?? [])
+  let buckets = bucketRules(rules)
   let usage = new Map<string, number>()
   let coverage = typeof options.coverage === 'number' ? options.coverage : 1
   let minGap = typeof options.minGap === 'number' ? options.minGap : 0
@@ -142,9 +161,9 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
     while (i < text.length) {
       let matched: ReplacementRule | null = null
       let display = ''
-      // rules are kept sorted longest-first, so the first hit is the longest
-      // match at this position.
-      for (const r of rules) {
+      // buckets keep the global longest-first order, so the first hit is the
+      // longest match at this position.
+      for (const r of buckets.get(text[i]) ?? NO_RULES) {
         if (!r || !r.from || r.to == null) continue
         if (!text.startsWith(r.from, i)) continue
         const key = replacementKey(r)
@@ -208,6 +227,7 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
   return {
     setRules(next) {
       rules = sortReplacementRules(next)
+      buckets = bucketRules(rules)
     },
     getRules() {
       return rules

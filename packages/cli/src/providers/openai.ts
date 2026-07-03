@@ -5,6 +5,7 @@ import {
   annotateExpressionsJob,
   readingUnitsJob,
   simplifyExpressionsJob,
+  translateSegmentsJob,
 } from '@lexweave/compile'
 
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/responses'
@@ -73,6 +74,7 @@ export function createOpenAiLlm(options: OpenAiOptions = {}): LexweaveLlm {
       ((await runJob(annotateExpressionsJob(payload))) as any).annotations ?? [],
     simplifyExpressions: async (payload) =>
       ((await runJob(simplifyExpressionsJob(payload))) as any).annotations ?? [],
+    translateSegments: async (payload) => (await runJob(translateSegmentsJob(payload))) as any,
   }
 }
 

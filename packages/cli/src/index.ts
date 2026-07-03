@@ -37,6 +37,9 @@ COMPILE OPTIONS
   --model <model>        provider model override
   --glossary <file>      mock provider: glossary JSON ({entries:[{span,translation,...}]})
   --chunk-chars <n>      max characters per LLM call          [default: 18000]
+  --full                 full-translation substrate: translate EVERY segment so
+                         density 1.0 (all tiers unlocked) renders the whole book
+                         in the target language. Costs O(book) tokens.
   -o, --out <file>       output bundle path                   [default: <input>.lexweave.json]
 
 RENDER OPTIONS
@@ -56,6 +59,9 @@ Keys: ANTHROPIC_API_KEY / OPENAI_API_KEY (env).
 
 type Args = {positional: string[]; flags: Map<string, string | boolean>}
 
+// Flags that never take a value, so `--full -o out.json` can't swallow `-o`.
+const BOOLEAN_FLAGS = new Set(['full'])
+
 function parseArgs(argv: string[]): Args {
   const positional: string[] = []
   const flags = new Map<string, string | boolean>()
@@ -66,7 +72,7 @@ function parseArgs(argv: string[]): Args {
     } else if (arg.startsWith('--')) {
       const name = arg.slice(2)
       const next = argv[i + 1]
-      if (next != null && !next.startsWith('--')) {
+      if (!BOOLEAN_FLAGS.has(name) && next != null && !next.startsWith('--')) {
         flags.set(name, next)
         i += 1
       } else {
@@ -109,15 +115,20 @@ async function cmdCompile(args: Args): Promise<void> {
         : createAnthropicLlm({model})
 
   const chunkChars = Number(str(args, 'chunk-chars') ?? 18000)
+  const fullTranslation = args.flags.get('full') === true
   const title = str(args, 'title') ?? path.basename(input, path.extname(input))
   const outPath = str(args, 'out') ?? input.replace(/\.[^.]+$/, '') + '.lexweave.json'
 
-  console.error(`compiling "${title}" (${rawText.length} chars, provider=${provider})...`)
+  console.error(
+    `compiling "${title}" (${rawText.length} chars, provider=${provider}` +
+      `${fullTranslation ? ', full translation' : ''})...`
+  )
   const result = await compileText(
     {rawText, title, sourceLanguage: source, targetLanguage: target},
     {
       llm,
       chunkChars,
+      fullTranslation,
       producer: `lexweave-cli-${provider}@1`,
       onProgress(progress: CompileProgress) {
         console.error(
@@ -125,6 +136,11 @@ async function cmdCompile(args: Args): Promise<void> {
             `sections ${progress.sectionStart}-${progress.sectionEnd}: ` +
             `${progress.units} units, ${progress.usage.totalTokens} tokens, ${progress.elapsedMs}ms`
         )
+      },
+      onTranslateProgress(done, total) {
+        if (done === 1 || done === total || done % 10 === 0) {
+          console.error(`  translate ${done}/${total} batches`)
+        }
       },
     }
   )
@@ -138,6 +154,9 @@ async function cmdCompile(args: Args): Promise<void> {
       `${byKind.get('phrase') ?? 0} phrases, ${byKind.get('sentence_pattern') ?? 0} sentences, ` +
       `${byKind.get('name') ?? 0} names) | concepts: ${annotations.length}\n` +
       `  dropped (span not verbatim): ${result.droppedUnlocatable}\n` +
+      (result.translationMissing != null
+        ? `  substrate: ${result.bundle.book.segmentCount} segments, ${result.translationMissing} missing\n`
+        : '') +
       `  base density: ${result.bundle.strategy.baseDensity} | tokens: ${result.usage.totalTokens}`
   )
 }

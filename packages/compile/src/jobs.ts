@@ -1,4 +1,5 @@
 import type {CorpusDigest, ExpressionSalienceInput, LlmExpressionBatchInput} from '@lexweave/core'
+import type {TranslateSegmentsPayload} from './translate'
 import type {ReadingUnitsPayload} from './units'
 
 /**
@@ -82,6 +83,46 @@ export function readingUnitsJob(payload: ReadingUnitsPayload): LlmJobSpec {
       JSON.stringify(payload),
     ].join('\n\n'),
     jsonSchema: READING_UNITS_SCHEMA,
+  }
+}
+
+const TRANSLATE_SEGMENTS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['translations'],
+  properties: {
+    translations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['index', 'translation'],
+        properties: {
+          index: {type: 'integer'},
+          translation: {type: 'string'},
+        },
+      },
+    },
+  },
+}
+
+/**
+ * Full-translation substrate job: translate every segment of one consecutive
+ * passage, glossary-consistent, echoing each segment's index for alignment.
+ */
+export function translateSegmentsJob(payload: TranslateSegmentsPayload): LlmJobSpec {
+  return {
+    name: 'segment_translations',
+    system:
+      'You translate a book segment-by-segment for a progressively bilingual reading edition. Return only JSON that matches the schema.',
+    user: [
+      "Translate EVERY segment below into the target language — one natural, faithful reading translation per segment, echoing each segment's `index`. Do not merge, split, reorder, or skip segments.",
+      'GLOSSARY CONSISTENCY: whenever a glossary source term appears in a segment, render it with exactly the given target form, every time.',
+      'The segments are consecutive text from one passage; optional `context` holds the sentences immediately before the first segment. Resolve pronouns, tense, and continuity from that context, and keep proper-noun renderings consistent across segments.',
+      'Translate at reading quality — natural target-language prose that could replace the segment in a published translation, not a word-by-word gloss.',
+      JSON.stringify(payload),
+    ].join('\n\n'),
+    jsonSchema: TRANSLATE_SEGMENTS_SCHEMA,
   }
 }
 

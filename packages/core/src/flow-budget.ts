@@ -199,9 +199,13 @@ export function computeActionLevel(
 //   word     世界观术语 / 动作词        灵石, 深吸
 //   phrase   动作块 / 对话·叙事 pattern  深吸一口气, 还未等他反应过来
 //   sentence 整句框架                    他拿出三块灵石，递给守门弟子。
-// A tier only unlocks once the reader has mastered enough of the tier below, so a
-// beginner sees single words swapped and an advanced reader sees whole phrases /
-// sentences flip to the target language — the path to "the page is mostly English".
+//
+// Progression is a RAMP, not a cliff: mastering smaller units continuously
+// EARNS slots for the tier above (each mastered word earns phrase slots, each
+// mastered phrase earns sentence slots), and each tier also earns its own
+// slots so the cascade can reach "the whole page is target language" instead
+// of plateauing. A binary unlock would dump the entire upper tier onto the
+// page at once — the experience the ramp exists to prevent.
 
 export type UnitTier = 'word' | 'phrase' | 'sentence'
 
@@ -212,40 +216,58 @@ export function expressionTier(kind: ExpressionKind): UnitTier {
   return 'word' // word | term | name
 }
 
-// Mastered smaller-unit counts needed to unlock the next tier.
-const PHRASE_UNLOCK_WORDS = 15
-const SENTENCE_UNLOCK_PHRASES = 8
+// Slots the tier above earns per fully-mastered unit of the tier below…
+const PHRASE_SLOTS_PER_WORD = 2
+const SENTENCE_SLOTS_PER_PHRASE = 3
+// …and per fully-mastered unit of the SAME tier (the self-term lets a tier
+// outgrow the finite pool below it and cascade to full coverage).
+const SLOTS_PER_SELF = 2
+
+export type TierQuotas = {
+  /** Max distinct phrase units the reader's mastery has earned. */
+  phrases: number
+  /** Max distinct sentence units the reader's mastery has earned. */
+  sentences: number
+}
 
 /**
- * Which unit tiers the reader has unlocked, from how many units of each smaller
- * tier they have mastered. `masteryBonus` (debug) lifts the counts so the ladder
- * can be previewed. Always includes `word`.
+ * How many phrase / sentence slots the reader's mastery has EARNED, from
+ * continuous "mastery mass": each unit contributes min(1, mastery/RETIRE), so
+ * a half-learned word buys half a slot and the ramp starts from the very first
+ * exposures instead of waiting on a count threshold. `masteryBonus` (debug)
+ * lifts the mass so the ladder can be previewed.
  */
-export function unlockedTiers(
+export function tierQuotas(
   expressions: Pick<Expression, 'id' | 'kind'>[],
   memory: ReadingMemory,
   masteryBonus = 0
-): Set<UnitTier> {
-  let masteredWords = 0
-  let masteredPhrases = 0
+): TierQuotas {
+  let wordMass = 0
+  let phraseMass = 0
+  let sentenceMass = 0
+  const counted = new Set<string>()
   for (const expression of expressions) {
+    // Concept variants share an id (and its mastery); count each id once.
+    if (counted.has(expression.id)) {
+      continue
+    }
+    counted.add(expression.id)
     const mastery = (memory.expressionStats[expression.id]?.masteryScore ?? 0) + masteryBonus
-    if (mastery < MASTERY_RETIRE) {
+    const mass = Math.min(1, mastery / MASTERY_RETIRE)
+    if (mass <= 0) {
       continue
     }
     const tier = expressionTier(expression.kind)
     if (tier === 'word') {
-      masteredWords += 1
+      wordMass += mass
     } else if (tier === 'phrase') {
-      masteredPhrases += 1
+      phraseMass += mass
+    } else {
+      sentenceMass += mass
     }
   }
-  const tiers = new Set<UnitTier>(['word'])
-  if (masteredWords >= PHRASE_UNLOCK_WORDS) {
-    tiers.add('phrase')
+  return {
+    phrases: Math.floor(wordMass * PHRASE_SLOTS_PER_WORD + phraseMass * SLOTS_PER_SELF),
+    sentences: Math.floor(phraseMass * SENTENCE_SLOTS_PER_PHRASE + sentenceMass * SLOTS_PER_SELF),
   }
-  if (masteredPhrases >= SENTENCE_UNLOCK_PHRASES) {
-    tiers.add('sentence')
-  }
-  return tiers
 }

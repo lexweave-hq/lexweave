@@ -5,6 +5,7 @@ import {
   annotateExpressionsJob,
   readingUnitsJob,
   simplifyExpressionsJob,
+  translateSegmentsJob,
 } from '@lexweave/compile'
 
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages'
@@ -79,5 +80,6 @@ export function createAnthropicLlm(options: AnthropicOptions = {}): LexweaveLlm 
       ((await runJob(annotateExpressionsJob(payload))) as any).annotations ?? [],
     simplifyExpressions: async (payload) =>
       ((await runJob(simplifyExpressionsJob(payload))) as any).annotations ?? [],
+    translateSegments: async (payload) => (await runJob(translateSegmentsJob(payload))) as any,
   }
 }

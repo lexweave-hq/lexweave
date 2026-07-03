@@ -6,6 +6,7 @@ import type {
   LlmExpressionAnnotation,
   LlmExpressionBatchInput,
 } from '@lexweave/core'
+import type {SegmentTranslationsResult, TranslateSegmentsPayload} from './translate'
 import type {ReadingUnitsPayload, ReadingUnitsResult} from './units'
 
 /** Token accounting reported by an LLM adapter (all zeros when unknown). */
@@ -32,6 +33,8 @@ export interface LexweaveLlm {
   annotateExpressions?(payload: LlmExpressionBatchInput): Promise<LlmExpressionAnnotation[]>
   /** Optional — simplify-mapper enrichment (same-language plainer phrase). */
   simplifyExpressions?(payload: LlmExpressionBatchInput): Promise<LlmExpressionAnnotation[]>
+  /** Optional — full-translation substrate: translate one batch of consecutive segments. */
+  translateSegments?(payload: TranslateSegmentsPayload): Promise<SegmentTranslationsResult>
 }
 
 export function normalizeLlmUsage(usage?: Partial<LlmUsage> | null): LlmUsage {

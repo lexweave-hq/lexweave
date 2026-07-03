@@ -4,7 +4,35 @@ All notable changes to the Lexweave packages are documented here. Versions are
 released in lockstep across `@lexweave/core`, `@lexweave/compile`,
 `@lexweave/render`, and `lexweave`.
 
-## 0.2.0 — 2026-07-03
+## 0.2.0 — 2026-07-04
+
+Full-translation substrate + mastery semantics fix (breaking).
+
+- **@lexweave/compile** — new full-translation substrate: `compileText(…,
+  {fullTranslation: true})` (CLI: `lexweave compile --full`) translates EVERY
+  segment of the book (batched, glossary-consistent with the extracted
+  signature vocabulary, concurrent) and carries each one as a sentence-tier
+  unit at salience `common`. The weave now selects from a COMPLETE bilingual
+  substrate: density 1.0 with all tiers unlocked renders the whole book in the
+  target language; lower densities weave signature vocabulary first. New
+  `translateSegments` port on `LexweaveLlm`, `translateSegmentsJob` spec, and
+  `translateDocumentSegments` helper.
+- **@lexweave/core** — sentence-tier units bypass the word-level n-gram guards
+  (boundary-fragment, name-overlap, synonym-list cleanup), so whole segments
+  containing names and commas replace correctly.
+- **@lexweave/core** — macro progression is a RAMP, not a cliff (breaking:
+  `unlockedTiers` replaced by `tierQuotas`). Mastery accrues as continuous
+  mass: each graduating word EARNS phrase slots, each graduating phrase earns
+  sentence slots (plus a self-term so the cascade reaches full coverage).
+  Within a tier, admission is ordered by READINESS — a phrase/sentence whose
+  text is already covered by surfaces the reader reads in the target language
+  (retired or A3+) flips first (comprehensible input / i+1) — so larger units
+  appear sporadically where mastered vocabulary clusters and densify smoothly,
+  instead of whole passages flipping at a threshold. `RuntimeReplacement`
+  gains a `tier` field.
+- **@lexweave/render** — `densityRenderOptions(1)` now uncaps coverage (full
+  density means FULL); the matcher indexes rules by first character, keeping
+  per-page renders at ~1ms even with thousands of substrate rules.
 
 Mastery semantics fix (breaking): a mastered word must never revert to source.
 

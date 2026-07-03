@@ -23,6 +23,13 @@ export type ReadingUnit = {
   risk: 'low' | 'medium' | 'high'
   plotCriticality: 'low' | 'medium' | 'high'
   reason?: string | null
+  /**
+   * Optional salience override. Extracted units default to 'signature' (or
+   * 'name' when keepSource); the full-translation substrate marks its sentences
+   * 'common' so they sit BELOW signature vocabulary in the weave priority —
+   * the ceiling of the ladder, not the start of it.
+   */
+  salience?: 'signature' | 'notable' | 'common' | 'name' | 'none'
 }
 
 export type ReadingUnitsResult = {
@@ -310,8 +317,9 @@ export async function mapReadingUnitsToAssets(
       frequency: Math.max(1, frequency),
       dispersion: dispersion || 1 / Math.max(1, document.sections.length),
       // Names stay in source (salience 'name' → not replaced by default); every
-      // other extracted unit is first-class signature vocabulary.
-      salience: keepSource ? 'name' : 'signature',
+      // other extracted unit is first-class signature vocabulary unless the
+      // unit carries an explicit override (substrate sentences are 'common').
+      salience: unit.salience ?? (keepSource ? 'name' : 'signature'),
       conceptCanonical,
     })
     occurrences.push({
