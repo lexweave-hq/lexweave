@@ -1,0 +1,24 @@
+<svg width="760" height="150" viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lexweave">
+  <style>
+    .ink { fill: #1b1b1b; }
+    .thread-ink { stroke: #b8b2a8; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #e8e6e3; }
+      .thread-ink { stroke: #5a564f; }
+    }
+  </style>
+
+  <!-- wordmark -->
+  <text x="380" y="78" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif" font-size="64" letter-spacing="1">
+    <tspan class="ink">lex</tspan><tspan fill="#2e7d57" font-weight="bold">weave</tspan>
+  </text>
+
+  <!-- two threads weaving: source language (ink) and target language (green) -->
+  <g fill="none" stroke-width="3" stroke-linecap="round">
+    <path class="thread-ink"
+          d="M 150 112 C 190 112, 200 128, 240 128 S 290 112, 330 112 S 380 128, 420 128 S 470 112, 510 112 S 560 128, 600 128"/>
+    <path stroke="#2e7d57"
+          d="M 150 128 C 190 128, 200 112, 240 112 S 290 128, 330 128 S 380 112, 420 112 S 470 128, 510 128 S 560 112, 600 112"/>
+  </g>
+</svg>

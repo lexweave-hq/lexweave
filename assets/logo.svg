@@ -1,0 +1,15 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lexweave logo">
+  <!-- paper tile -->
+  <rect width="256" height="256" rx="56" fill="#faf7f0"/>
+
+  <!-- two threads weaving: source (ink) and target (green) -->
+  <g fill="none" stroke-width="18" stroke-linecap="round">
+    <path stroke="#1b1b1b"
+          d="M 44 100 C 76 100, 84 156, 128 156 S 180 100, 212 100"/>
+    <path stroke="#2e7d57"
+          d="M 44 156 C 76 156, 84 100, 128 100 S 180 156, 212 156"/>
+    <!-- over/under crossings: repaint short ink segments over the green thread -->
+    <path stroke="#1b1b1b" d="M 96 128 C 106 138, 116 148, 128 152"/>
+    <path stroke="#2e7d57" d="M 160 104 C 172 108, 182 118, 192 128"/>
+  </g>
+</svg>

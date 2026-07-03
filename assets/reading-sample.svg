@@ -1,0 +1,37 @@
+<svg width="760" height="330" viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="The same sentence rendered at growing immersion levels as the reader masters each word">
+  <style>
+    .label { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; fill: #8a8378; }
+    .cjk   { font-family: Georgia, 'Songti SC', 'Noto Serif SC', 'Microsoft YaHei', serif; font-size: 21px; fill: #1b1b1b; }
+    .rep   { fill: #2e7d57; font-weight: bold; }
+    .gloss { fill: #5b7fae; }
+    .note  { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; fill: #9a938a; }
+  </style>
+
+  <!-- paper card -->
+  <rect x="8" y="8" width="744" height="314" rx="14" fill="#faf7f0" stroke="#e3ddd2"/>
+
+  <!-- header -->
+  <text x="40" y="48" class="label">the same sentence, as the reader's mastery of 灵石 grows</text>
+  <line x1="40" y1="62" x2="720" y2="62" stroke="#e3ddd2"/>
+
+  <!-- A1 -->
+  <text x="40" y="103" class="label">A1</text>
+  <text x="88" y="105" class="cjk">他拿出三块<tspan class="gloss">灵石（spirit stones）</tspan>，递给守门弟子。</text>
+  <text x="88" y="127" class="note">new word — source stays primary, target glossed alongside</text>
+
+  <!-- A2 -->
+  <text x="40" y="166" class="label">A2</text>
+  <text x="88" y="168" class="cjk">他拿出三块 <tspan class="gloss">spirit stones（灵石）</tspan>，递给守门弟子。</text>
+  <text x="88" y="190" class="note">target takes over, source still visible</text>
+
+  <!-- A3 -->
+  <text x="40" y="229" class="label">A3</text>
+  <text x="88" y="231" class="cjk">他拿出三块 <tspan class="rep">spirit stones</tspan>，递给守门弟子。</text>
+  <text x="88" y="253" class="note">target only — tap reveals the source</text>
+
+  <!-- A4 -->
+  <text x="40" y="292" class="label">A4</text>
+  <text x="88" y="294" class="cjk">他拿出三块 spirit stones，递给守门弟子。</text>
+  <text x="88" y="316" class="note">fully immersed — reads as plain body text, word retired</text>
+</svg>

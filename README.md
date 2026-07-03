@@ -1,6 +1,6 @@
 <div align="center">
 
-# Lexweave
+<img src="assets/wordmark.svg" alt="Lexweave" width="640"/>
 
 **Turn any long-form text into a progressively bilingual learning edition.**
 
@@ -22,13 +22,9 @@ then renders a personalized **graded reader** for every reader at read time:
 the book's own signature vocabulary is woven into the target language,
 progressively, at a density each reader can actually sustain.
 
-```
-他拿出三块灵石。                      ← original
-他拿出三块灵石（spirit stones）。     ← A1 · new word, fully glossed
-他拿出三块 spirit stones（灵石）。    ← A2 · target primary
-他拿出三块 spirit stones。            ← A3 · tap to reveal source
-He took out three spirit stones.     ← A5 · whole-sentence sweep (roadmap)
-```
+<div align="center">
+<img src="assets/reading-sample.svg" alt="The same sentence rendered at growing immersion levels (A1 fully glossed → A4 fully immersed) as the reader masters each word" width="720"/>
+</div>
 
 The reader keeps chasing the story. The engine controls the exposure. Every
 exposure updates the learner state. The next render adapts. That is the whole
