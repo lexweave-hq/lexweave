@@ -4,6 +4,13 @@ All notable changes to the Lexweave packages are documented here. Versions are
 released in lockstep across `@lexweave/core`, `@lexweave/compile`,
 `@lexweave/render`, and `lexweave`.
 
+## 0.1.1 — 2026-07-03
+
+Republish: `@lexweave/compile@0.1.0` was burned on npm (published then
+unpublished; npm permanently blocks reusing a version). All four packages move
+to 0.1.1 in lockstep; inter-package dependencies now use `^0.1.1`. No code
+changes.
+
 ## 0.1.0 — 2026-07-03
 
 Initial public release.

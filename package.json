@@ -1,6 +1,6 @@
 {
   "name": "lexweave-monorepo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Lexweave — turn any long-form text into a progressively bilingual learning edition (diglot weave / graded reader engine).",
   "workspaces": [
