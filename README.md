@@ -111,6 +111,33 @@ artifact is a portable JSON bundle ([format spec](./packages/core/BUNDLE_SPEC.md
 learner state deliberately lives outside it — the book asset is shareable,
 the reader's memory is theirs.
 
+## Case study: a 1000-chapter novel
+
+The engine's stress corpus is 凡人修仙传 (*A Record of a Mortal's Journey to
+Immortality*) — the first **1000 chapters: 2.82M characters, 86,627
+segments**, compiled once into a full-translation substrate:
+
+| | |
+|---|---|
+| Compile | `--full` + OpenAI Batch API (50% token price) · 13.9M tokens · interrupted and **resumed from checkpoints**, finishing at 86,627/86,627 segments translated, 0 failed batches |
+| Assets | **89,584 verbatim units** — 85,441 sentence frames · 2,719 phrases · 1,139 terms · 285 names (kept in source) |
+| Strategy | LLM-designed base density 0.25 for a fresh reader |
+| Quality gate | every unit scored; 15 source-echo · 117 length-anomaly · 1 marker-loss flagged for review — nothing silently dropped |
+
+Below, the debug playground running that bundle (short excerpts shown for
+demonstration; the novel belongs to its author — book files never enter this
+repo). A fresh reader sees the book's signature vocabulary surface fully
+glossed at A1:
+
+<img src="assets/playground-fresh.png" alt="Debug playground on a fresh reader: 43 replacements on the page, all at A1 — signature words like 弟子（disciple） glossed on a blue wash, sidebar documenting density, mastery and tier-ramp mechanics" width="900"/>
+
+The same page, previewing a reader further along (`+3` mastery, 60 words
+mastered): glosses have faded to bare target words (A4), and the tier ramp —
+fed by those mastered words — has begun flipping **whole sentences** into
+English (256 sentence frames admitted against 1,024 earned slots):
+
+<img src="assets/playground-ramped.png" alt="The same page after simulated progress: bare A4 words (disciple, effort), an A3 word with tap affordance, and a whole sentence flipped to English mid-dialogue; stats read 句 256/槽1024" width="900"/>
+
 ## Packages
 
 | Package | What it is | Dependencies |
