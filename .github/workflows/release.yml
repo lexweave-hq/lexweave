@@ -7,7 +7,10 @@
 #
 # Release flow:
 #   npm version 0.x.y -ws --include-workspace-root
-#   git commit -am "release: v0.x.y" && git tag v0.x.y && git push --follow-tags
+#   git commit -am "release: v0.x.y" && git tag v0.x.y
+#   git push origin main v0.x.y        (--follow-tags misses lightweight tags)
+# The workflow then publishes all four packages to npm and creates the
+# GitHub Release for the tag automatically.
 name: Release
 
 on:
@@ -15,7 +18,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  contents: write # create the GitHub Release for the tag
   id-token: write # npm provenance
 
 jobs:
@@ -45,3 +48,14 @@ jobs:
           for pkg in core render compile cli; do
             npm publish --provenance -w packages/$pkg
           done
+
+      # Only after npm publish succeeds, so the Releases page never gets ahead
+      # of the registry. Skips quietly if the release was already created by
+      # hand; notes are auto-generated from commits and can be edited after.
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "Lexweave ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
