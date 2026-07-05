@@ -59,6 +59,36 @@ node packages/cli/dist/lexweave.cjs inspect book.lexweave.json
 Providers: `--provider anthropic` (default) · `openai` · `mock` (offline,
 glossary-driven — used by the demo and CI).
 
+### Debug playground
+
+One self-contained HTML page with every knob of the engine live: density,
+mastery preview, simulated-mastered words, the word → phrase → sentence ramp
+(with per-tier switches and earned-slot quotas), A1→A4 scaffold styles, gloss
+styles (brackets / inline / ruby), and the active rule table — all driven by
+the **real** planner + renderer bundled inline, so what you see is exactly
+what the CLI and an embedding app render. The sidebar documents each
+mechanism next to its slider.
+
+```bash
+npm run demo:debug
+open examples/demo/sample-book-debug.html
+```
+
+Point it at your own compiled book — e.g. a 凡人修仙传 (first 1000 chapters,
+~8M chars) full-translation substrate; `--slice-chars` keeps the page snappy
+by cutting a paragraph-aligned slice and its matching units:
+
+```bash
+node scripts/debug-render.mjs books/fanren-1000.txt \
+  --bundle books/fanren-1000.lexweave.json \
+  --slice-chars 40000 -o books/fanren-1000-debug.html
+```
+
+Generated pages stay local by design (`books/` is gitignored — book files are
+never committed). Every control round-trips through the URL
+(`?density=0.4&mastery=2&style=debug&gloss=inline`), so a specific
+configuration is one link to share.
+
 ## How it works
 
 ```
