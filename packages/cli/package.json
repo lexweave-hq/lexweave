@@ -1,6 +1,6 @@
 {
   "name": "lexweave",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn any long-form text into a progressively bilingual learning edition (diglot weave / graded reader) from the command line — compile once with an LLM, render offline forever.",
   "keywords": [
     "language-learning",
@@ -28,9 +28,9 @@
     "prepublishOnly": "node build.cjs"
   },
   "dependencies": {
-    "@lexweave/compile": "^0.2.0",
-    "@lexweave/core": "^0.2.0",
-    "@lexweave/render": "^0.2.0",
+    "@lexweave/compile": "^0.3.0",
+    "@lexweave/core": "^0.3.0",
+    "@lexweave/render": "^0.3.0",
     "undici": "^6.27.0"
   },
   "devDependencies": {

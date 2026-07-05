@@ -12,3 +12,4 @@ examples/demo/*.html
 # local test books — never commit book files
 *.epub
 books/
+examples/demo/*.lexweave.json.runs/
