@@ -6,7 +6,12 @@ import type {
   LlmExpressionAnnotation,
   LlmExpressionBatchInput,
 } from '@lexweave/core'
-import type {SegmentTranslationsResult, TranslateSegmentsPayload} from './translate'
+import type {
+  BookContextPayload,
+  BookContextResult,
+  SegmentTranslationsResult,
+  TranslateSegmentsPayload,
+} from './translate'
 import type {ReadingUnitsPayload, ReadingUnitsResult} from './units'
 
 /** Token accounting reported by an LLM adapter (all zeros when unknown). */
@@ -35,6 +40,8 @@ export interface LexweaveLlm {
   simplifyExpressions?(payload: LlmExpressionBatchInput): Promise<LlmExpressionAnnotation[]>
   /** Optional — full-translation substrate: translate one batch of consecutive segments. */
   translateSegments?(payload: TranslateSegmentsPayload): Promise<SegmentTranslationsResult>
+  /** Optional — one-shot book brief (synopsis, character sheet, world notes) for translation consistency. */
+  designTranslationContext?(payload: BookContextPayload): Promise<BookContextResult>
 }
 
 export function normalizeLlmUsage(usage?: Partial<LlmUsage> | null): LlmUsage {

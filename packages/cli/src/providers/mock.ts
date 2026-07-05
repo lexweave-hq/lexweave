@@ -43,15 +43,30 @@ export function createMockLlm(entries: MockGlossaryEntry[]): LexweaveLlm {
         usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0},
       }
     },
+    // Deterministic book brief so the --full context path exercises offline.
+    async designTranslationContext(payload) {
+      return {
+        synopsis: `Mock synopsis for ${payload.book.title ?? 'the book'}.`,
+        characters: payload.glossary.slice(0, 3).map((entry) => ({
+          name: entry.source,
+          rendering: entry.target,
+          notes: 'mock character card',
+        })),
+        world: ['mock world note'],
+        usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0},
+      }
+    },
     // Deterministic placeholder substrate so --full works offline: obviously
     // fake "[en] …" translations, with glossary terms swapped in for realism.
+    // Returns the terse {i, t} wire form real providers emit since prompt v3,
+    // so the normalization path gets exercised offline too.
     async translateSegments(payload) {
       const translations = payload.segments.map((segment) => {
         let text = segment.text
         for (const entry of payload.glossary) {
           text = text.split(entry.source).join(entry.target)
         }
-        return {index: segment.index, translation: `[en] ${text}`}
+        return {i: segment.index, t: `[en] ${text}`}
       })
       return {translations, usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0}}
     },

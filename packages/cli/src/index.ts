@@ -1,5 +1,18 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {EnvHttpProxyAgent, setGlobalDispatcher} from 'undici'
+
+// Node's fetch ignores http(s)_proxy env vars (curl honors them). Providers
+// are unreachable directly in proxied environments, so route fetch through
+// the same proxy the shell uses whenever one is configured.
+if (
+  process.env.https_proxy ||
+  process.env.HTTPS_PROXY ||
+  process.env.http_proxy ||
+  process.env.HTTP_PROXY
+) {
+  setGlobalDispatcher(new EnvHttpProxyAgent())
+}
 import {
   createDocumentFromPlainText,
   createReadingMemory,
@@ -18,9 +31,10 @@ import {
   plainMatchRenderer,
   type ReplacementEngine,
 } from '@lexweave/render'
-import {createAnthropicLlm} from './providers/anthropic'
+import {ANTHROPIC_DEFAULT_MODEL, createAnthropicLlm} from './providers/anthropic'
 import {createMockLlm, type MockGlossaryEntry} from './providers/mock'
-import {createOpenAiLlm} from './providers/openai'
+import {createOpenAiLlm, OPENAI_DEFAULT_MODEL} from './providers/openai'
+import {createFileRunStore} from './run-store'
 
 const HELP = `lexweave — compile long-form text into a progressively bilingual learning edition
 
@@ -33,13 +47,33 @@ COMPILE OPTIONS
   --source <lang>        source language (e.g. zh)            [required]
   --target <lang>        target language (e.g. en)            [required]
   --title <title>        book title
-  --provider <name>      anthropic | openai | mock            [default: anthropic]
+  --provider <name>      anthropic | openai | mock            [default: openai]
   --model <model>        provider model override
+  --extract-model <m>    model for the extraction pass only (defaults to --model;
+                         lets translation run a stronger model while extraction
+                         keeps its cheaper one — and its checkpoint cache)
   --glossary <file>      mock provider: glossary JSON ({entries:[{span,translation,...}]})
-  --chunk-chars <n>      max characters per LLM call          [default: 18000]
+  --chunk-chars <n>      max characters per extraction call   [default: 8000]
+                         smaller chunks = more calls = a larger unit pool
+                         (models return ~25 units per call regardless of size)
+  --concurrency <n>      parallel LLM calls (extraction + translation)
+                         [default: 16, or 4096 with --batch-api] — raise if your
+                         account tier allows, lower to 4-8 if the quality
+                         report shows failed batches
+  --batch-api            (openai only) run extraction + translation through the
+                         OpenAI Batch API at 50% of synchronous token prices.
+                         Results land within minutes to hours instead of live;
+                         checkpoints and resume work exactly the same
   --full                 full-translation substrate: translate EVERY segment so
                          density 1.0 (all tiers unlocked) renders the whole book
-                         in the target language. Costs O(book) tokens.
+                         in the target language. Costs O(book) tokens. Writes a
+                         quality report next to the bundle (<out minus .json>.report.json).
+  --fresh                discard the <out>.runs/ checkpoint cache and recompile
+                         from scratch
+
+  Compile checkpoints every extraction chunk and translation batch under
+  <out>.runs/ as it finishes — an interrupted run resumes for free when
+  re-run with the same inputs, glossary, provider, and model.
   -o, --out <file>       output bundle path                   [default: <input>.lexweave.json]
 
 RENDER OPTIONS
@@ -60,7 +94,7 @@ Keys: ANTHROPIC_API_KEY / OPENAI_API_KEY (env).
 type Args = {positional: string[]; flags: Map<string, string | boolean>}
 
 // Flags that never take a value, so `--full -o out.json` can't swallow `-o`.
-const BOOLEAN_FLAGS = new Set(['full'])
+const BOOLEAN_FLAGS = new Set(['full', 'fresh', 'batch-api'])
 
 function parseArgs(argv: string[]): Args {
   const positional: string[] = []
@@ -104,20 +138,44 @@ async function cmdCompile(args: Args): Promise<void> {
   if (!source || !target) fail('compile requires --source and --target')
 
   const rawText = fs.readFileSync(input, 'utf8')
-  const provider = str(args, 'provider') ?? 'anthropic'
+  const provider = str(args, 'provider') ?? 'openai'
   const model = str(args, 'model')
+  // Resolve to the ACTUAL model names so fingerprint salts stay stable whether
+  // the default is implicit or spelled out.
+  const resolvedModel =
+    model ??
+    (provider === 'openai'
+      ? OPENAI_DEFAULT_MODEL
+      : provider === 'anthropic'
+        ? ANTHROPIC_DEFAULT_MODEL
+        : 'mock')
+  const extractModel = str(args, 'extract-model') ?? resolvedModel
+
+  const batchApi = args.flags.get('batch-api') === true
+  if (batchApi && provider !== 'openai') {
+    fail('--batch-api currently supports the openai provider only')
+  }
 
   const llm =
     provider === 'mock'
       ? createMockLlm(loadGlossary(str(args, 'glossary')))
       : provider === 'openai'
-        ? createOpenAiLlm({model})
-        : createAnthropicLlm({model})
+        ? createOpenAiLlm({model, extractModel, batchApi})
+        : createAnthropicLlm({model, extractModel})
 
-  const chunkChars = Number(str(args, 'chunk-chars') ?? 18000)
+  const chunkChars = Number(str(args, 'chunk-chars') ?? 8000)
+  // Batch mode wants effectively-unbounded pipeline concurrency: every worker
+  // just parks a request in the aggregator, and large aggregates are what make
+  // one OpenAI batch submission carry hundreds of requests.
+  const concurrency = Number(str(args, 'concurrency') ?? (batchApi ? 4096 : 16))
   const fullTranslation = args.flags.get('full') === true
   const title = str(args, 'title') ?? path.basename(input, path.extname(input))
   const outPath = str(args, 'out') ?? input.replace(/\.[^.]+$/, '') + '.lexweave.json'
+
+  const runsDir = `${outPath}.runs`
+  if (args.flags.get('fresh') === true) {
+    fs.rmSync(runsDir, {recursive: true, force: true})
+  }
 
   console.error(
     `compiling "${title}" (${rawText.length} chars, provider=${provider}` +
@@ -128,7 +186,14 @@ async function cmdCompile(args: Args): Promise<void> {
     {
       llm,
       chunkChars,
+      extractionConcurrency: concurrency,
+      translationConcurrency: concurrency,
       fullTranslation,
+      runStore: createFileRunStore(runsDir),
+      // Per-pass salts on the RESOLVED models: switching only the translation
+      // model re-keys the batches while the extraction chunk cache survives.
+      runSalt: `${provider}:${resolvedModel}`,
+      extractionSalt: `${provider}:${extractModel}`,
       producer: `lexweave-cli-${provider}@1`,
       onProgress(progress: CompileProgress) {
         console.error(
@@ -145,7 +210,31 @@ async function cmdCompile(args: Args): Promise<void> {
     }
   )
 
-  fs.writeFileSync(outPath, JSON.stringify(result.bundle, null, 2))
+  // Pretty-printing roughly doubles a bundle's size; past ~20k units (a big
+  // --full substrate) write compact so a 千万字 book stays writable and lean.
+  const prettyBundle = result.bundle.candidates.length <= 20000
+  fs.writeFileSync(outPath, JSON.stringify(result.bundle, null, prettyBundle ? 2 : undefined))
+
+  let reportLine = ''
+  if (result.translationReport) {
+    const report = result.translationReport
+    const reportPath = outPath.replace(/\.json$/, '') + '.report.json'
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2))
+    const counts = Object.entries(report.flagCounts)
+      .filter(([, count]) => count > 0)
+      .map(([kind, count]) => `${kind}=${count}`)
+      .join(' ')
+    reportLine =
+      `  substrate: ${report.translated}/${report.totalSegments} segments translated` +
+      `${result.translationCachedBatches ? `, ${result.translationCachedBatches} batches from cache` : ''}` +
+      `${report.failedBatches ? `, ${report.failedBatches} batches FAILED` : ''}\n` +
+      `  quality: ${counts || 'clean'} → ${reportPath}\n` +
+      (result.translationContext
+        ? `  book brief: ${result.translationContext.characters.length} characters, ` +
+          `${result.translationContext.world.length} world notes\n`
+        : '')
+  }
+
   const {candidates, annotations} = result.bundle
   const byKind = countBy(candidates, (c) => c.kind)
   console.error(
@@ -154,11 +243,16 @@ async function cmdCompile(args: Args): Promise<void> {
       `${byKind.get('phrase') ?? 0} phrases, ${byKind.get('sentence_pattern') ?? 0} sentences, ` +
       `${byKind.get('name') ?? 0} names) | concepts: ${annotations.length}\n` +
       `  dropped (span not verbatim): ${result.droppedUnlocatable}\n` +
-      (result.translationMissing != null
-        ? `  substrate: ${result.bundle.book.segmentCount} segments, ${result.translationMissing} missing\n`
-        : '') +
+      reportLine +
       `  base density: ${result.bundle.strategy.baseDensity} | tokens: ${result.usage.totalTokens}`
   )
+  if (result.translationReport && result.translationReport.missing > 0) {
+    console.error(
+      `\nWARNING: ${result.translationReport.missing} segments are untranslated ` +
+        `(${result.translationReport.failedBatches} failed batches). The bundle keeps them ` +
+        `in the source language. Re-run the same command to resume from the checkpoint and fill them.`
+    )
+  }
 }
 
 async function cmdRender(args: Args): Promise<void> {

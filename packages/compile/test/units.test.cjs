@@ -30,7 +30,8 @@ test('scanUnitStats counts non-overlapping occurrences with dispersion and offse
 })
 
 test('mapReadingUnitsToAssets drops unlocatable spans and dedups by verbatim span', async () => {
-  const document = doc('他掏出三块灵石，深吸一口气。')
+  // 灵石 twice: freq ≥ 2 keeps 'signature' (one-offs are demoted to notable).
+  const document = doc('他掏出三块灵石，深吸一口气。灵石微微发亮。')
   const unit = (span, translation, extra = {}) => ({
     span,
     evidence: span,

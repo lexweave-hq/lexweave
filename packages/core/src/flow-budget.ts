@@ -234,8 +234,14 @@ export type TierQuotas = {
  * How many phrase / sentence slots the reader's mastery has EARNED, from
  * continuous "mastery mass": each unit contributes min(1, mastery/RETIRE), so
  * a half-learned word buys half a slot and the ramp starts from the very first
- * exposures instead of waiting on a count threshold. `masteryBonus` (debug)
- * lifts the mass so the ladder can be previewed.
+ * exposures instead of waiting on a count threshold.
+ *
+ * `masteryBonus` (debug preview) is STAGGERED by tier — words get the full
+ * bonus, phrases lag one step, sentences two — because a real reader's mastery
+ * accrues bottom-up. A uniform bonus would hand the sentence tier its own
+ * simulated mastery (mass × the self-slot term × a substrate of thousands of
+ * sentences) and the preview would jump from zero sentences to a flood at +1,
+ * the exact cliff the ramp exists to prevent.
  */
 export function tierQuotas(
   expressions: Pick<Expression, 'id' | 'kind'>[],
@@ -245,6 +251,11 @@ export function tierQuotas(
   let wordMass = 0
   let phraseMass = 0
   let sentenceMass = 0
+  const bonusFor: Record<UnitTier, number> = {
+    word: masteryBonus,
+    phrase: Math.max(0, masteryBonus - 1),
+    sentence: Math.max(0, masteryBonus - 2),
+  }
   const counted = new Set<string>()
   for (const expression of expressions) {
     // Concept variants share an id (and its mastery); count each id once.
@@ -252,12 +263,12 @@ export function tierQuotas(
       continue
     }
     counted.add(expression.id)
-    const mastery = (memory.expressionStats[expression.id]?.masteryScore ?? 0) + masteryBonus
+    const tier = expressionTier(expression.kind)
+    const mastery = (memory.expressionStats[expression.id]?.masteryScore ?? 0) + bonusFor[tier]
     const mass = Math.min(1, mastery / MASTERY_RETIRE)
     if (mass <= 0) {
       continue
     }
-    const tier = expressionTier(expression.kind)
     if (tier === 'word') {
       wordMass += mass
     } else if (tier === 'phrase') {

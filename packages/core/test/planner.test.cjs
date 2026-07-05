@@ -216,3 +216,33 @@ test('readiness: the phrase built from known words flips first (i+1)', () => {
   assert.equal(phraseRules.length, 1)
   assert.equal(phraseRules[0].from, '三块灵石')
 })
+
+// —— preview ramp: masteryBonus is staggered by tier (word → phrase → sentence) ——
+
+test('tierQuotas preview bonus is staggered so sentences do not flood at +1', () => {
+  const {tierQuotas} = require('../dist')
+  const expressions = [
+    ...Array.from({length: 10}, (_, i) => ({id: `w${i}`, kind: 'term'})),
+    ...Array.from({length: 10}, (_, i) => ({id: `p${i}`, kind: 'phrase'})),
+    ...Array.from({length: 1000}, (_, i) => ({id: `s${i}`, kind: 'sentence_pattern'})),
+  ]
+  const memory = {userId: 'u', contentId: 'c', expressionStats: {}}
+
+  const at0 = tierQuotas(expressions, memory, 0)
+  assert.deepEqual(at0, {phrases: 0, sentences: 0})
+
+  // +1: only WORD mass moves → phrase slots open, sentence quota stays 0.
+  const at1 = tierQuotas(expressions, memory, 1)
+  assert.ok(at1.phrases > 0)
+  assert.equal(at1.sentences, 0)
+
+  // +2: phrase mass moves → sentences trickle in, but the sentence pool's own
+  // simulated mastery contributes nothing yet (no thousand-slot flood).
+  const at2 = tierQuotas(expressions, memory, 2)
+  assert.ok(at2.sentences > 0)
+  assert.ok(at2.sentences < 100, `sentence quota at +2 should trickle, got ${at2.sentences}`)
+
+  // +3 and up: the sentence tier's own mass engages and the ramp cascades.
+  const at3 = tierQuotas(expressions, memory, 3)
+  assert.ok(at3.sentences > at2.sentences)
+})

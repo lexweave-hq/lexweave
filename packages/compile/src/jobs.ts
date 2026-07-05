@@ -1,5 +1,5 @@
 import type {CorpusDigest, ExpressionSalienceInput, LlmExpressionBatchInput} from '@lexweave/core'
-import type {TranslateSegmentsPayload} from './translate'
+import type {BookContextPayload, TranslateSegmentsPayload} from './translate'
 import type {ReadingUnitsPayload} from './units'
 
 /**
@@ -61,14 +61,33 @@ const READING_UNITS_SCHEMA = {
  * extraction. One call per chunk returns a flat inventory of learnable units at
  * three granularities — word / phrase / sentence — each a VERBATIM span the
  * renderer can locate and replace by exact substring match.
+ *
+ * NOTE: when you materially edit a prompt in this file, bump the matching
+ * version constant in translate.ts — LEXWEAVE_EXTRACT_PROMPT_VERSION for the
+ * extraction job, LEXWEAVE_TRANSLATE_PROMPT_VERSION for the translation /
+ * book-context jobs. They re-key the checkpoint caches so results produced
+ * under old instructions never resume into new runs; keeping them separate
+ * means a translation prompt edit does not throw away the (expensive)
+ * extraction chunk cache, and vice versa.
  */
 export function readingUnitsJob(payload: ReadingUnitsPayload): LlmJobSpec {
+  // Coverage floors scale with chunk size (per-1000-chars), so a big chunk
+  // can't satisfy the ask with a token handful of units. Floors, not caps:
+  // the downstream planner selects from the pool, so over-extraction is safe
+  // while under-extraction is unrecoverable without a recompile.
+  const chunkChars = payload.chapters.reduce((sum, chapter) => sum + chapter.text.length, 0)
+  const wordFloor = Math.max(6, Math.round((chunkChars * 1.5) / 1000))
+  const phraseFloor = Math.max(6, Math.round((chunkChars * 1.5) / 1000))
+  const sentenceFloor = Math.max(4, Math.round((chunkChars * 0.5) / 1000))
   return {
     name: 'reading_units',
     system:
       'You extract a stratified inventory of learnable units — single words, verb-centred action phrases, and whole short sentences — from narrative text for a progressive bilingual immersion reader. Return only grounded JSON that matches the schema.',
     user: [
       'Read the provided chapters and extract units a language learner would benefit from seeing rendered in the target language, at THREE granularities set by the `tier` field: "word", "phrase", "sentence".',
+      `COVERAGE FLOOR: this chunk is ~${chunkChars} characters. Return AT LEAST ~${wordFloor} word units, ~${phraseFloor} phrase units, and ~${sentenceFloor} sentence units. These are floors, not caps — exceed them freely when the text supports it. The downstream planner selects a small subset from this pool at read time, so extracting more costs the reader nothing, while extracting too few starves the whole edition.`,
+      'RECURRENCE: prefer distinctive units likely to recur across the book — thematic vocabulary, habitual actions, argumentation patterns, the phrases this author reaches for again and again. A unit that reappears teaches more than a one-off; include a one-off only when it is highly characteristic of the book.',
+      'TIER MIX: shift the balance by genre — coined-vocabulary fiction (fantasy, cultivation, sci-fi) supports more word units; idea prose and non-fiction supports more verb phrases and reusable sentence patterns.',
       'CRITICAL — VERBATIM: `span` MUST be copied character-for-character exactly as it appears in the text, INCLUDING any aspect particles (了/着/过), structural particles (的/地/得), and modifiers that sit inside it. NEVER normalise, trim, shorten, or clean it. `evidence` is the full sentence that contains `span`, also copied verbatim, and MUST contain `span` as an exact substring. This verbatim rule is what lets the reader find and replace the unit on the page.',
       'tier "word": one meaningful unit — signature/world or coined vocabulary and power-system terms plus ordinary but learnable content words. A proper noun (person/place/organization name) may be included with keepSource=true; all other words keepSource=false.',
       'tier "phrase": a VERB-centred action chunk — an action verb together with its object or complement, learned as one chunk (点了点头 → nodded, 深吸一口气 → took a deep breath). It MUST contain an action verb. NOT a bare verb, NOT a noun/entity.',
@@ -86,6 +105,9 @@ export function readingUnitsJob(payload: ReadingUnitsPayload): LlmJobSpec {
   }
 }
 
+// Wire keys are deliberately terse: `i`/`t` instead of `index`/`translation`.
+// The long keys cost ~4 output tokens per segment — across a novel's ~200k
+// segments that is millions of pure-syntax output tokens at output prices.
 const TRANSLATE_SEGMENTS_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -96,10 +118,10 @@ const TRANSLATE_SEGMENTS_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['index', 'translation'],
+        required: ['i', 't'],
         properties: {
-          index: {type: 'integer'},
-          translation: {type: 'string'},
+          i: {type: 'integer'},
+          t: {type: 'string'},
         },
       },
     },
@@ -116,13 +138,61 @@ export function translateSegmentsJob(payload: TranslateSegmentsPayload): LlmJobS
     system:
       'You translate a book segment-by-segment for a progressively bilingual reading edition. Return only JSON that matches the schema.',
     user: [
-      "Translate EVERY segment below into the target language — one natural, faithful reading translation per segment, echoing each segment's `index`. Do not merge, split, reorder, or skip segments.",
+      'Translate EVERY segment below into the target language — one natural, faithful reading translation per segment. Return one item per segment: `i` echoes that segment\'s `index`, `t` is its translation. Do not merge, split, reorder, or skip segments.',
       'GLOSSARY CONSISTENCY: whenever a glossary source term appears in a segment, render it with exactly the given target form, every time.',
+      'BOOK CONTEXT: optional `bookContext` is the book-level brief — a synopsis, a character sheet (source name → target rendering, with role/gender/voice notes), and world notes. Use it to resolve pronoun gender, honorifics, register, and each character’s dialogue voice; render every character name exactly as its `rendering`.',
       'The segments are consecutive text from one passage; optional `context` holds the sentences immediately before the first segment. Resolve pronouns, tense, and continuity from that context, and keep proper-noun renderings consistent across segments.',
       'Translate at reading quality — natural target-language prose that could replace the segment in a published translation, not a word-by-word gloss.',
+      'Preserve meaning-bearing literals exactly: numbers, dates, and any bracketed or markup-like tokens must survive into the translation unchanged.',
       JSON.stringify(payload),
     ].join('\n\n'),
     jsonSchema: TRANSLATE_SEGMENTS_SCHEMA,
+  }
+}
+
+const BOOK_CONTEXT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['synopsis', 'characters', 'world'],
+  properties: {
+    synopsis: {type: 'string'},
+    characters: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'rendering', 'notes'],
+        properties: {
+          name: {type: 'string'},
+          rendering: {type: 'string'},
+          notes: {type: 'string'},
+        },
+      },
+    },
+    world: {type: 'array', items: {type: 'string'}},
+  },
+}
+
+/**
+ * Book-context job: ONE cheap call that turns the opening excerpt, section
+ * titles, and signature glossary into a translation brief ("story bible") —
+ * synopsis + character sheet + world notes — that every full-translation batch
+ * then shares, so far-apart passages agree on names, pronouns, and voice.
+ */
+export function bookContextJob(payload: BookContextPayload): LlmJobSpec {
+  return {
+    name: 'book_translation_context',
+    system:
+      'You prepare a translation brief (a compact "story bible") for translating one book consistently across many independent batches. Return only JSON that matches the schema.',
+    user: [
+      'From the opening excerpt, the section titles, and the glossary of signature terms, write the brief a translator would pin above their desk while translating THIS book into the target language.',
+      'synopsis: 3-6 sentences on premise, setting, and narrative voice/register, grounded ONLY in the provided material — never invent plot.',
+      'characters: the main and recurring characters you can identify. For each: `name` exactly as it appears in the source text; `rendering` = how the name should appear in the target language (reuse the glossary rendering when the name is in the glossary); `notes` = one line with role, gender if inferable (for pronoun resolution), and speech style or verbal tics that dialogue must keep.',
+      'world: up to 12 one-line notes on the setting, world rules, power/technology systems, and terminology conventions that keep batches consistent.',
+      'Only include characters and facts actually evidenced by the excerpt, titles, or glossary. An empty array is better than an invented entry.',
+      JSON.stringify(payload),
+    ].join('\n\n'),
+    jsonSchema: BOOK_CONTEXT_SCHEMA,
   }
 }
 

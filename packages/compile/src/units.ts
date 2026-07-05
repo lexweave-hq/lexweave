@@ -318,8 +318,12 @@ export async function mapReadingUnitsToAssets(
       dispersion: dispersion || 1 / Math.max(1, document.sections.length),
       // Names stay in source (salience 'name' → not replaced by default); every
       // other extracted unit is first-class signature vocabulary unless the
-      // unit carries an explicit override (substrate sentences are 'common').
-      salience: unit.salience ?? (keepSource ? 'name' : 'signature'),
+      // unit carries an explicit override (substrate sentences are 'common') —
+      // EXCEPT one-offs: the verbatim scan is the recurrence arbiter the
+      // per-chunk LLM can't be, and a unit the reader can never re-encounter
+      // doesn't deserve a front-of-weave slot. Demoted to 'notable', it stays
+      // eligible but sinks below recurring vocabulary in planner priority.
+      salience: unit.salience ?? (keepSource ? 'name' : frequency <= 1 ? 'notable' : 'signature'),
       conceptCanonical,
     })
     occurrences.push({

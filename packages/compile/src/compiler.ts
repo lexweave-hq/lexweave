@@ -7,16 +7,28 @@ import {
   type ContentKind,
 } from '@lexweave/core'
 import {addLlmUsage, normalizeLlmUsage, type LexweaveLlm, type LlmUsage} from './ports'
-import {translateDocumentSegments} from './translate'
+import {
+  hashRunKey,
+  LEXWEAVE_EXTRACT_PROMPT_VERSION,
+  translateDocumentSegments,
+  type BookTranslationContext,
+  type CompileRunStore,
+  type TranslationQualityReport,
+} from './translate'
 import {
   buildChunkPayload,
   chunkDocument,
   mapReadingUnitsToAssets,
   type ReadingUnit,
+  type ReadingUnitsResult,
 } from './units'
 
 export const DEFAULT_PRODUCER = 'lexweave-compile@1'
-const DEFAULT_CHUNK_CHARS = 18000
+// Measured (naval, gpt-4.1-mini): a model returns ~25 units per extraction
+// call REGARDLESS of chunk size, so smaller chunks = more calls = a bigger
+// unit pool for the same book (18k→8k roughly doubled words+phrases at ~equal
+// token cost). 8k balances yield against per-call overhead and serial latency.
+const DEFAULT_CHUNK_CHARS = 8000
 
 export type CompileProgress = {
   chunkIndex: number
@@ -43,8 +55,30 @@ export type CompileOptions = {
    * are output-bound and much cheaper.
    */
   fullTranslation?: boolean
+  /** Concurrent in-flight extraction chunk calls (default 4). */
+  extractionConcurrency?: number
   /** Concurrent in-flight calls for the full-translation pass (default 4). */
   translationConcurrency?: number
+  /**
+   * Checkpoint store for the whole compile: extraction chunks, translation
+   * batches, and the book brief all persist as they finish, so an interrupted
+   * run resumes instead of restarting. Each pass is keyed by a fingerprint of
+   * its own inputs (chunk texts + producer / segments + glossary + salt), so a
+   * changed prompt or glossary can never serve stale cached results — and a
+   * resumed run reuses the SAME extraction, keeping the downstream glossary
+   * (and therefore the translation fingerprint) stable across re-runs.
+   */
+  runStore?: CompileRunStore
+  /** Extra fingerprint discriminator for the store (e.g. "anthropic:claude-sonnet-5"). */
+  runSalt?: string
+  /**
+   * Separate discriminator for the extraction pass (defaults to runSalt).
+   * Lets the two passes run different models — switching the translation
+   * model re-keys only the batches, keeping the extraction chunks cached.
+   */
+  extractionSalt?: string
+  /** Pause before each single per-call retry (default 2500ms; 0 in tests). */
+  retryDelayMs?: number
   onTranslateProgress?: (done: number, total: number) => void
 }
 
@@ -56,6 +90,12 @@ export type CompileResult = {
   chunkCount: number
   /** Full-translation pass only: segments the model failed to echo back. */
   translationMissing?: number
+  /** Full-translation pass only: post-pass quality gate over every segment. */
+  translationReport?: TranslationQualityReport
+  /** Full-translation pass only: batches served from the checkpoint store. */
+  translationCachedBatches?: number
+  /** Full-translation pass only: the book brief injected into every batch. */
+  translationContext?: BookTranslationContext
 }
 
 /**
@@ -69,7 +109,30 @@ export async function compileDocument(
   options: CompileOptions
 ): Promise<CompileResult> {
   const producer = options.producer ?? DEFAULT_PRODUCER
-  const chunks = chunkDocument(document, options.chunkChars ?? DEFAULT_CHUNK_CHARS)
+  const chunkChars = options.chunkChars ?? DEFAULT_CHUNK_CHARS
+  const chunks = chunkDocument(document, chunkChars)
+  const store = options.runStore
+
+  // Extraction checkpoint: cached chunks make re-runs deterministic, which is
+  // what keeps the downstream glossary — and therefore the translation
+  // fingerprint — stable, so translation batches survive an interrupt too.
+  const extractionFingerprint = hashRunKey({
+    v: 1,
+    kind: 'extract',
+    prompt: LEXWEAVE_EXTRACT_PROMPT_VERSION,
+    salt: options.extractionSalt ?? options.runSalt ?? '',
+    producer,
+    chunkChars,
+    source: document.sourceLanguage,
+    target: document.defaultTargetLanguage,
+    texts: chunks.map((chunk) => chunk.chapters.map((chapter) => chapter.text)),
+  })
+  let cachedChunks: Map<number, {units: unknown[]; baseDensity?: number | null; note?: string | null}>
+  try {
+    cachedChunks = (await store?.loadChunks?.(extractionFingerprint)) ?? new Map()
+  } catch {
+    cachedChunks = new Map()
+  }
 
   const units: ReadingUnit[] = []
   let densityTotal = 0
@@ -77,18 +140,41 @@ export async function compileDocument(
   let noteSample: string | null | undefined
   let usage = normalizeLlmUsage(null)
 
-  for (let index = 0; index < chunks.length; index += 1) {
+  // Extraction worker pool: chunks run concurrently (a 千万字 book is ~1000
+  // chunks — serial extraction alone would take hours), then aggregate IN
+  // CHUNK ORDER so the unit inventory stays deterministic.
+  const chunkResults: (ReadingUnitsResult | undefined)[] = new Array(chunks.length)
+  let chunkCursor = 0
+  const runChunk = async (index: number): Promise<void> => {
     const chunk = chunks[index]
     const startedAt = Date.now()
-    const result = await options.llm.extractReadingUnits(buildChunkPayload(document, chunk.chapters))
-    if (Array.isArray(result.units)) {
-      units.push(...result.units)
+    const cached = cachedChunks.get(index)
+    let result: ReadingUnitsResult
+    if (cached && Array.isArray(cached.units)) {
+      result = {
+        units: cached.units as ReadingUnit[],
+        baseDensity: cached.baseDensity ?? undefined,
+        note: cached.note ?? undefined,
+      }
+    } else {
+      const payload = buildChunkPayload(document, chunk.chapters)
+      result = await callWithRetry(
+        () => options.llm.extractReadingUnits(payload),
+        options.retryDelayMs
+      )
+      if (store?.saveChunk && Array.isArray(result.units)) {
+        try {
+          await store.saveChunk(extractionFingerprint, index, {
+            units: result.units,
+            baseDensity: result.baseDensity ?? null,
+            note: result.note ?? null,
+          })
+        } catch {
+          // Persistence is best-effort; the run itself must not fail on it.
+        }
+      }
     }
-    if (typeof result.baseDensity === 'number') {
-      densityTotal += result.baseDensity
-      densityCount += 1
-    }
-    noteSample = noteSample ?? result.note
+    chunkResults[index] = result
     usage = addLlmUsage(usage, result.usage)
     options.onProgress?.({
       chunkIndex: index,
@@ -100,6 +186,32 @@ export async function compileDocument(
       elapsedMs: Date.now() - startedAt,
     })
   }
+  const extractionWorker = async () => {
+    while (chunkCursor < chunks.length) {
+      const index = chunkCursor
+      chunkCursor += 1
+      await runChunk(index)
+    }
+  }
+  const extractionConcurrency = Math.max(
+    1,
+    Math.min(options.extractionConcurrency ?? 4, Math.max(1, chunks.length))
+  )
+  await Promise.all(Array.from({length: extractionConcurrency}, extractionWorker))
+
+  for (const result of chunkResults) {
+    if (!result) {
+      continue
+    }
+    if (Array.isArray(result.units)) {
+      units.push(...result.units)
+    }
+    if (typeof result.baseDensity === 'number') {
+      densityTotal += result.baseDensity
+      densityCount += 1
+    }
+    noteSample = noteSample ?? result.note
+  }
 
   // Full-translation substrate: every segment becomes a sentence-tier unit at
   // salience 'common', translated with the extracted signature vocabulary as a
@@ -107,16 +219,25 @@ export async function compileDocument(
   // substrate is its ceiling (density 1.0 + unlocked tiers = whole book in the
   // target language).
   let translationMissing: number | undefined
+  let translationReport: TranslationQualityReport | undefined
+  let translationCachedBatches: number | undefined
+  let translationContext: BookTranslationContext | undefined
   if (options.fullTranslation) {
     const glossary = buildConsistencyGlossary(units)
     const translated = await translateDocumentSegments(document, {
       llm: options.llm,
       glossary,
+      store: options.runStore,
+      salt: options.runSalt,
+      retryDelayMs: options.retryDelayMs,
       concurrency: options.translationConcurrency,
       onProgress: (done, total) => options.onTranslateProgress?.(done, total),
     })
     usage = addLlmUsage(usage, translated.usage)
     translationMissing = translated.missing
+    translationReport = translated.report
+    translationCachedBatches = translated.cachedBatches
+    translationContext = translated.bookContext
     for (const segment of translated.segments) {
       units.push({
         span: segment.sourceText,
@@ -183,6 +304,9 @@ export async function compileDocument(
     droppedUnlocatable: assets.droppedUnlocatable,
     chunkCount: chunks.length,
     translationMissing,
+    translationReport,
+    translationCachedBatches,
+    translationContext,
   }
 }
 
@@ -205,6 +329,29 @@ function buildConsistencyGlossary(units: ReadingUnit[]): {source: string; target
     }
   }
   return glossary
+}
+
+// Exponential backoff, 6 attempts, capped at 60s: a TPM rate-limit wave lasts
+// a full minute, so the retry ladder must be able to WAIT OUT a whole window
+// (2.5s→7.5s→22.5s→60s→60s ≈ 2.5min of patience) rather than fail a healthy
+// run over throughput. A hard extraction failure aborts the compile
+// (completed chunks are checkpointed, so an aborted run still resumes).
+async function callWithRetry<T>(call: () => Promise<T>, baseDelayMs = 2500): Promise<T> {
+  const attempts = 6
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await call()
+    } catch (error) {
+      lastError = error
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(60_000, baseDelayMs * 3 ** attempt))
+        )
+      }
+    }
+  }
+  throw lastError
 }
 
 export type CompileTextInput = {

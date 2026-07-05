@@ -1,5 +1,6 @@
 import type {LexweaveLlm, LlmJobSpec} from '@lexweave/compile'
 import {
+  bookContextJob,
   bookIntelligenceJob,
   bookStrategyJob,
   annotateExpressionsJob,
@@ -9,11 +10,13 @@ import {
 } from '@lexweave/compile'
 
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages'
-const DEFAULT_MODEL = 'claude-sonnet-5'
+export const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5'
 
 export type AnthropicOptions = {
   apiKey?: string
   model?: string
+  /** Model for the extraction pass only (defaults to `model`). */
+  extractModel?: string
   maxOutputTokens?: number
 }
 
@@ -22,14 +25,29 @@ export type AnthropicOptions = {
  * the job's JSON schema, so the response is structured by construction.
  */
 export function createAnthropicLlm(options: AnthropicOptions = {}): LexweaveLlm {
-  const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY
+  // Trim first: keys pasted from CRLF .env files carry a trailing \r that
+  // would corrupt the HTTP header just as badly as placeholder text.
+  const apiKey = (options.apiKey ?? process.env.ANTHROPIC_API_KEY)?.trim()
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not set (or pass --api-key)')
   }
-  const model = options.model ?? DEFAULT_MODEL
+  // HTTP headers reject non-Latin-1 and control characters — catch pasted
+  // placeholders (e.g. 你的key) with a clear message, not a fetch error.
+  if (!/^[\x21-\x7e]+$/.test(apiKey)) {
+    throw new Error(
+      'ANTHROPIC_API_KEY contains characters that cannot go into an HTTP header ' +
+        '(placeholder text, spaces, or a stray newline). Set it to your real key ' +
+        '(starts with "sk-ant-") from console.anthropic.com.'
+    )
+  }
+  const model = options.model ?? ANTHROPIC_DEFAULT_MODEL
+  const extractModel = options.extractModel ?? model
   const maxTokens = options.maxOutputTokens ?? 8192
 
-  const runJob = async (spec: LlmJobSpec): Promise<Record<string, unknown>> => {
+  const runJob = async (
+    spec: LlmJobSpec,
+    jobModel: string = model
+  ): Promise<Record<string, unknown>> => {
     const response = await fetch(ANTHROPIC_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -38,7 +56,7 @@ export function createAnthropicLlm(options: AnthropicOptions = {}): LexweaveLlm 
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: jobModel,
         max_tokens: maxTokens,
         system: spec.system,
         messages: [{role: 'user', content: spec.user}],
@@ -72,7 +90,8 @@ export function createAnthropicLlm(options: AnthropicOptions = {}): LexweaveLlm 
   }
 
   return {
-    extractReadingUnits: async (payload) => (await runJob(readingUnitsJob(payload))) as any,
+    extractReadingUnits: async (payload) =>
+      (await runJob(readingUnitsJob(payload), extractModel)) as any,
     rateBookIntelligence: async (payload) =>
       ((await runJob(bookIntelligenceJob(payload))) as any).ratings ?? [],
     designBookStrategy: async (digest) => (await runJob(bookStrategyJob(digest))) as any,
@@ -81,5 +100,6 @@ export function createAnthropicLlm(options: AnthropicOptions = {}): LexweaveLlm 
     simplifyExpressions: async (payload) =>
       ((await runJob(simplifyExpressionsJob(payload))) as any).annotations ?? [],
     translateSegments: async (payload) => (await runJob(translateSegmentsJob(payload))) as any,
+    designTranslationContext: async (payload) => (await runJob(bookContextJob(payload))) as any,
   }
 }
