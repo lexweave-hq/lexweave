@@ -176,7 +176,9 @@ Contributions for other pairs are very welcome.
 
 ## Roadmap
 
-- [ ] A5 whole-sentence sweep (progressively flip full sentences)
+- [x] Whole-sentence flipping — shipped as the full-translation substrate
+      (`compile --full`) + continuous word → phrase → sentence tier ramp with
+      readiness (i+1) ordering, instead of a binary "A5 sweep" (0.2.0, refined 0.3.0)
 - [ ] EPUB input in the CLI
 - [ ] Browser-extension render target (any web novel → learning edition)
 - [ ] Spaced-repetition export (review cards from learner state)
