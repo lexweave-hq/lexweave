@@ -61,6 +61,9 @@ glossary-driven — used by the demo and CI).
 
 ### Debug playground
 
+**[▶ Try it live](https://lexweave-hq.github.io/lexweave/)** — the playground
+for the demo book, hosted on GitHub Pages; no install needed.
+
 One self-contained HTML page with every knob of the engine live: density,
 mastery preview, simulated-mastered words, the word → phrase → sentence ramp
 (with per-tier switches and earned-slot quotas), A1→A4 scaffold styles, gloss
@@ -137,6 +140,11 @@ fed by those mastered words — has begun flipping **whole sentences** into
 English (256 sentence frames admitted against 1,024 earned slots):
 
 <img src="assets/playground-ramped.png" alt="The same page after simulated progress: bare A4 words (disciple, effort), an A3 word with tap affordance, and a whole sentence flipped to English mid-dialogue; stats read 句 256/槽1024" width="900"/>
+
+These are static shots because hosting a copyrighted novel's text would break
+the books/ policy — but the **same playground runs
+[live on the demo book](https://lexweave-hq.github.io/lexweave/)**, and one
+command points it at any book you compile yourself.
 
 ## Packages
 
