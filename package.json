@@ -14,7 +14,7 @@
     "demo:compile": "node packages/cli/dist/lexweave.cjs compile examples/demo/sample-book.txt --source zh --target en --provider mock --glossary examples/demo/glossary.json -o examples/demo/sample-book.lexweave.json",
     "demo:render": "node packages/cli/dist/lexweave.cjs render examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o examples/demo/sample-book.html",
     "demo:debug": "npm run demo:compile && node scripts/debug-render.mjs examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o examples/demo/sample-book-debug.html",
-    "pages:build": "npm run demo:compile && node scripts/debug-render.mjs examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o docs/index.html"
+    "pages:build": "node scripts/debug-render.mjs examples/xiyouji/xiyouji-1-2.txt --bundle examples/xiyouji/xiyouji.lexweave.json -o docs/index.html"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

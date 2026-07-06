@@ -61,8 +61,14 @@ glossary-driven — used by the demo and CI).
 
 ### Debug playground
 
-**[▶ Try it live](https://lexweave-hq.github.io/lexweave/)** — the playground
-for the demo book, hosted on GitHub Pages; no install needed.
+**[▶ Try it live](https://lexweave-hq.github.io/lexweave/)** — a **real
+compile** (OpenAI gpt-4.1-mini, `--full` substrate) of the public-domain
+classic 西游记 (*Journey to the West*), chapters 1–2: 590 verbatim units,
+535/535 segments translated, base density 0.275 chosen by the model. Nothing
+hand-curated — drag 熟练度预览 up and watch the model's own sentence
+translations weave into the page. Text from Chinese Wikisource; bundle
+committed under [`examples/xiyouji/`](./examples/xiyouji), so
+`npm run pages:build` regenerates the page without an API key.
 
 One self-contained HTML page with every knob of the engine live: density,
 mastery preview, simulated-mastered words, the word → phrase → sentence ramp
@@ -142,9 +148,9 @@ English (256 sentence frames admitted against 1,024 earned slots):
 <img src="assets/playground-ramped.png" alt="The same page after simulated progress: bare A4 words (disciple, effort), an A3 word with tap affordance, and a whole sentence flipped to English mid-dialogue; stats read 句 256/槽1024" width="900"/>
 
 These are static shots because hosting a copyrighted novel's text would break
-the books/ policy — but the **same playground runs
-[live on the demo book](https://lexweave-hq.github.io/lexweave/)**, and one
-command points it at any book you compile yourself.
+the books/ policy — but the **same playground runs live on a
+[real compile of *Journey to the West*](https://lexweave-hq.github.io/lexweave/)**
+(public domain), and one command points it at any book you compile yourself.
 
 ## Packages
 

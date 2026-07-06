@@ -13,3 +13,4 @@ examples/demo/*.html
 *.epub
 books/
 examples/demo/*.lexweave.json.runs/
+examples/xiyouji/*.lexweave.json.runs/
