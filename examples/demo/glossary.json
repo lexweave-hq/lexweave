@@ -1,30 +1,204 @@
 {
+  "baseDensity": 0.35,
   "entries": [
-    {"span": "灵石", "translation": "spirit stone", "tier": "word"},
-    {"span": "灵气", "translation": "spirit energy", "tier": "word"},
-    {"span": "青云宗", "translation": "Azure Cloud Sect", "tier": "word"},
-    {"span": "聚气丹", "translation": "qi-gathering pill", "tier": "word"},
-    {"span": "筑基丹", "translation": "foundation pill", "tier": "word"},
-    {"span": "筑基", "translation": "foundation establishment", "tier": "word"},
-    {"span": "储物袋", "translation": "storage pouch", "tier": "word"},
-    {"span": "炼丹房", "translation": "alchemy hall", "tier": "word"},
-    {"span": "丹田", "translation": "dantian", "tier": "word"},
-    {"span": "丹炉", "translation": "pill furnace", "tier": "word"},
-    {"span": "心法", "translation": "cultivation method", "tier": "word"},
-    {"span": "御剑", "translation": "sword-riding", "tier": "word"},
-    {"span": "外门弟子", "translation": "outer disciple", "tier": "word"},
-    {"span": "守门弟子", "translation": "gate disciple", "tier": "word"},
-    {"span": "修行界", "translation": "the cultivation world", "tier": "word"},
-    {"span": "火候", "translation": "heat timing", "tier": "word"},
-    {"span": "口诀", "translation": "mnemonic formula", "tier": "word"},
-    {"span": "深吸一口气", "translation": "took a deep breath", "tier": "phrase"},
-    {"span": "点了点头", "translation": "nodded", "tier": "phrase"},
-    {"span": "皱起眉头", "translation": "frowned", "tier": "phrase"},
-    {"span": "握紧拳头", "translation": "clenched his fist", "tier": "phrase"},
-    {"span": "摇了摇头", "translation": "shook his head", "tier": "phrase"},
-    {"span": "还未等他反应过来", "translation": "before he could react", "tier": "sentence"},
-    {"span": "林昭", "translation": "Lin Zhao", "keepSource": true},
-    {"span": "沈长老", "translation": "Elder Shen", "keepSource": true},
-    {"span": "青云山", "translation": "Azure Cloud Mountain", "keepSource": true}
+    {
+      "span": "灵石",
+      "translation": "spirit stone",
+      "tier": "word"
+    },
+    {
+      "span": "灵气",
+      "translation": "spirit energy",
+      "tier": "word"
+    },
+    {
+      "span": "青云宗",
+      "translation": "Azure Cloud Sect",
+      "tier": "word"
+    },
+    {
+      "span": "聚气丹",
+      "translation": "qi-gathering pill",
+      "tier": "word"
+    },
+    {
+      "span": "筑基丹",
+      "translation": "foundation pill",
+      "tier": "word",
+      "plotCriticality": "high"
+    },
+    {
+      "span": "储物袋",
+      "translation": "storage pouch",
+      "tier": "word"
+    },
+    {
+      "span": "炼丹房",
+      "translation": "alchemy hall",
+      "tier": "word"
+    },
+    {
+      "span": "丹田",
+      "translation": "dantian",
+      "tier": "word",
+      "risk": "medium"
+    },
+    {
+      "span": "丹炉",
+      "translation": "pill furnace",
+      "tier": "word"
+    },
+    {
+      "span": "青云心法",
+      "translation": "Azure Cloud Method",
+      "tier": "word"
+    },
+    {
+      "span": "御剑",
+      "translation": "sword-riding",
+      "tier": "word"
+    },
+    {
+      "span": "外门弟子",
+      "translation": "outer disciple",
+      "tier": "word"
+    },
+    {
+      "span": "守门弟子",
+      "translation": "gate disciple",
+      "tier": "word"
+    },
+    {
+      "span": "记名弟子",
+      "translation": "named disciple",
+      "tier": "word"
+    },
+    {
+      "span": "修行界",
+      "translation": "the cultivation world",
+      "tier": "word"
+    },
+    {
+      "span": "火候",
+      "translation": "heat timing",
+      "tier": "word",
+      "plotCriticality": "medium"
+    },
+    {
+      "span": "口诀",
+      "translation": "mnemonic formula",
+      "tier": "word"
+    },
+    {
+      "span": "演武场",
+      "translation": "sparring grounds",
+      "tier": "word"
+    },
+    {
+      "span": "石室",
+      "translation": "stone chamber",
+      "tier": "word"
+    },
+    {
+      "span": "小周天",
+      "translation": "lesser heavenly circuit",
+      "tier": "word",
+      "risk": "high"
+    },
+    {
+      "span": "灵木",
+      "translation": "spirit wood",
+      "tier": "word"
+    },
+    {
+      "span": "气旋",
+      "translation": "qi vortex",
+      "tier": "word"
+    },
+    {
+      "span": "深吸一口气",
+      "translation": "took a deep breath",
+      "tier": "phrase"
+    },
+    {
+      "span": "点了点头",
+      "translation": "nodded",
+      "tier": "phrase"
+    },
+    {
+      "span": "皱起眉头",
+      "translation": "frowned",
+      "tier": "phrase"
+    },
+    {
+      "span": "握紧拳头",
+      "translation": "clenched his fist",
+      "tier": "phrase"
+    },
+    {
+      "span": "摇了摇头",
+      "translation": "shook his head",
+      "tier": "phrase"
+    },
+    {
+      "span": "想也没想",
+      "translation": "without a second thought",
+      "tier": "phrase"
+    },
+    {
+      "span": "来之不易",
+      "translation": "hard-won",
+      "tier": "phrase"
+    },
+    {
+      "span": "别有洞天",
+      "translation": "a world of its own",
+      "tier": "phrase"
+    },
+    {
+      "span": "还未等他反应过来",
+      "translation": "before he could react",
+      "tier": "sentence"
+    },
+    {
+      "span": "筑基，成了。",
+      "translation": "Foundation establishment — complete.",
+      "tier": "sentence"
+    },
+    {
+      "span": "剑光掠过山谷，像一道流星。",
+      "translation": "The sword-light swept across the valley like a shooting star.",
+      "tier": "sentence"
+    },
+    {
+      "span": "沈长老盯着他看了很久，忽然笑了。",
+      "translation": "Elder Shen stared at him for a long time — and then, suddenly, he smiled.",
+      "tier": "sentence"
+    },
+    {
+      "span": "天亮的时候，他已经能让灵气在体内走完一个小周天了。",
+      "translation": "By dawn, he could already guide the spirit energy through a full lesser heavenly circuit.",
+      "tier": "sentence"
+    },
+    {
+      "span": "第一天，丹田胀得像要裂开。",
+      "translation": "On the first day, his dantian swelled as if it were about to split open.",
+      "tier": "sentence"
+    },
+    {
+      "span": "林昭",
+      "translation": "Lin Zhao",
+      "keepSource": true
+    },
+    {
+      "span": "沈长老",
+      "translation": "Elder Shen",
+      "keepSource": true
+    },
+    {
+      "span": "青云山",
+      "translation": "Azure Cloud Mountain",
+      "keepSource": true
+    }
   ]
 }

@@ -15,7 +15,13 @@ export type MockGlossaryEntry = {
   plotCriticality?: ReadingUnit['plotCriticality']
 }
 
-export function createMockLlm(entries: MockGlossaryEntry[]): LexweaveLlm {
+export type MockLlmOptions = {
+  /** Base density the mock "strategy" reports (a real provider derives this from the book). */
+  baseDensity?: number
+}
+
+export function createMockLlm(entries: MockGlossaryEntry[], options: MockLlmOptions = {}): LexweaveLlm {
+  const baseDensity = options.baseDensity ?? 0.6
   return {
     async extractReadingUnits(payload) {
       const text = payload.chapters.map((chapter) => chapter.text).join('\n\n')
@@ -38,7 +44,7 @@ export function createMockLlm(entries: MockGlossaryEntry[]): LexweaveLlm {
       }
       return {
         units,
-        baseDensity: 0.6,
+        baseDensity,
         note: 'Mock provider: units taken from the supplied glossary.',
         usage: {inputTokens: 0, outputTokens: 0, totalTokens: 0},
       }

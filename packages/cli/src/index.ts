@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {EnvHttpProxyAgent, setGlobalDispatcher} from 'undici'
@@ -52,7 +53,8 @@ COMPILE OPTIONS
   --extract-model <m>    model for the extraction pass only (defaults to --model;
                          lets translation run a stronger model while extraction
                          keeps its cheaper one — and its checkpoint cache)
-  --glossary <file>      mock provider: glossary JSON ({entries:[{span,translation,...}]})
+  --glossary <file>      mock provider: glossary JSON ({entries:[{span,translation,...}],
+                         baseDensity?: 0..1})
   --chunk-chars <n>      max characters per extraction call   [default: 8000]
                          smaller chunks = more calls = a larger unit pool
                          (models return ~25 units per call regardless of size)
@@ -156,12 +158,19 @@ async function cmdCompile(args: Args): Promise<void> {
     fail('--batch-api currently supports the openai provider only')
   }
 
-  const llm =
-    provider === 'mock'
-      ? createMockLlm(loadGlossary(str(args, 'glossary')))
-      : provider === 'openai'
-        ? createOpenAiLlm({model, extractModel, batchApi})
-        : createAnthropicLlm({model, extractModel})
+  // The mock provider's "model" IS the glossary file, so its content must salt
+  // the checkpoint fingerprints — otherwise editing the glossary silently
+  // replays stale extraction chunks from <out>.runs/.
+  const mockGlossary = provider === 'mock' ? loadGlossary(str(args, 'glossary')) : null
+  const mockSalt = mockGlossary
+    ? ':' + crypto.createHash('sha256').update(JSON.stringify(mockGlossary)).digest('hex').slice(0, 16)
+    : ''
+
+  const llm = mockGlossary
+    ? createMockLlm(mockGlossary.entries, {baseDensity: mockGlossary.baseDensity})
+    : provider === 'openai'
+      ? createOpenAiLlm({model, extractModel, batchApi})
+      : createAnthropicLlm({model, extractModel})
 
   const chunkChars = Number(str(args, 'chunk-chars') ?? 8000)
   // Batch mode wants effectively-unbounded pipeline concurrency: every worker
@@ -192,8 +201,8 @@ async function cmdCompile(args: Args): Promise<void> {
       runStore: createFileRunStore(runsDir),
       // Per-pass salts on the RESOLVED models: switching only the translation
       // model re-keys the batches while the extraction chunk cache survives.
-      runSalt: `${provider}:${resolvedModel}`,
-      extractionSalt: `${provider}:${extractModel}`,
+      runSalt: `${provider}:${resolvedModel}${mockSalt}`,
+      extractionSalt: `${provider}:${extractModel}${mockSalt}`,
       producer: `lexweave-cli-${provider}@1`,
       onProgress(progress: CompileProgress) {
         console.error(
@@ -417,7 +426,10 @@ function cmdInspect(args: Args): void {
   }
 }
 
-function loadGlossary(file: string | undefined): MockGlossaryEntry[] {
+function loadGlossary(file: string | undefined): {
+  entries: MockGlossaryEntry[]
+  baseDensity?: number
+} {
   if (!file) {
     fail('the mock provider requires --glossary <file>')
   }
@@ -426,7 +438,8 @@ function loadGlossary(file: string | undefined): MockGlossaryEntry[] {
   if (!Array.isArray(entries)) {
     fail('glossary must be an array or {entries: [...]} of {span, translation}')
   }
-  return entries
+  const baseDensity = Array.isArray(parsed) ? undefined : parsed.baseDensity
+  return {entries, baseDensity: typeof baseDensity === 'number' ? baseDensity : undefined}
 }
 
 function countBy<T>(items: T[], key: (item: T) => string): Map<string, number> {
