@@ -35,6 +35,15 @@ const outPath = flags.get('out') ?? input.replace(/\.txt$/, '') + '-debug.html'
 let rawText = fs.readFileSync(input, 'utf8')
 const bundle = core.parseBookBundle(fs.readFileSync(bundlePath, 'utf8'))
 
+// --start-at <literal>: skip ebook front matter without creating a second
+// source file. The marker must exist so a typo cannot silently change content.
+const startAt = flags.get('start-at')
+if (startAt) {
+  const startIndex = rawText.indexOf(startAt)
+  if (startIndex < 0) throw new Error(`start marker not found: ${startAt}`)
+  rawText = rawText.slice(startIndex)
+}
+
 // --slice-chars <n>: debug a slice of a huge book. A full-substrate bundle
 // embeds every unit into the page; for a 百万字 book that is a >100MB HTML no
 // browser will open. Cutting the text (at a paragraph boundary) and keeping
@@ -107,7 +116,7 @@ const runtimeJs = runtime.outputFiles[0].text
 const json = (value) => JSON.stringify(value).replace(/</g, '\\u003c')
 
 const meta = {
-  title: bundle.book.title ?? path.basename(input),
+  title: flags.get('title') ?? bundle.book.title ?? path.basename(input),
   targetLanguage: bundle.book.targetLanguage,
   baseDensity: Math.round(bundle.strategy.baseDensity * 100) / 100,
 }
@@ -224,9 +233,130 @@ const html = `<!doctype html>
     body { display:block }
     #side { position:static; width:auto; height:auto; border-right:none; border-bottom:1px solid var(--line) }
   }
+
+  /* Lexweave website visual system. Kept here so every generated playground
+     uses the same brand shell instead of relying on a hand-edited output. */
+  :root {
+    --accent:#164bff; --gloss:#164bff; --bg:#fff; --fg:#171a1f;
+    --bar:#fff; --line:#d9dce0; --dim:#656970;
+    --pink:#e60087; --lime:#b4d400;
+    --sans:Arial,"PingFang SC","Noto Sans CJK SC",sans-serif;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace
+  }
+  body { display:block; font-family:var(--sans) }
+  button, input, select { font:inherit }
+  a { color:inherit }
+  #brandbar {
+    position:sticky; top:0; z-index:30; display:grid; grid-template-columns:320px 1fr;
+    min-height:72px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.96);
+    backdrop-filter:blur(12px)
+  }
+  .playground-brand {
+    display:flex; align-items:center; gap:10px; padding:0 22px; border-right:1px solid var(--line);
+    text-decoration:none
+  }
+  .playground-brand svg { width:42px; height:36px; flex:none }
+  .playground-brand span { display:flex; flex-direction:column; line-height:1.05 }
+  .playground-brand strong { font-family:var(--mono); font-size:15px }
+  .playground-brand small { margin-top:4px; color:var(--dim); font-family:var(--mono); font-size:8px }
+  #brandbar nav { display:flex; align-items:center; justify-content:flex-end; gap:34px; padding:0 28px }
+  #brandbar nav a { position:relative; padding:28px 0 27px; text-decoration:none; font-size:12px }
+  #brandbar nav a::after {
+    position:absolute; right:0; bottom:20px; left:0; height:1px; background:var(--accent);
+    content:""; transform:scaleX(0); transition:transform 160ms ease
+  }
+  #brandbar nav a:hover::after, #brandbar nav a:focus-visible::after { transform:scaleX(1) }
+  #app { display:flex; align-items:flex-start; min-height:calc(100vh - 72px) }
+  #side {
+    width:320px; top:72px; height:calc(100vh - 72px); padding:26px 22px 48px;
+    background:#fff; border-right:1px solid var(--line); font-size:13px
+  }
+  #side h1 { margin:0 0 8px; font-size:22px; line-height:1.1; letter-spacing:-.02em }
+  #side .meta { margin-bottom:24px; color:var(--dim); font-family:var(--mono); font-size:9px; line-height:1.55 }
+  #side h2 {
+    margin:26px 0 13px; padding-bottom:9px; border-bottom:1px solid var(--line);
+    color:var(--fg); font-family:var(--mono); font-size:9px; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase
+  }
+  #side .knob label { min-width:4em; font-size:12px }
+  #side input[type=range] { accent-color:var(--accent) }
+  #side .val { color:var(--dim); font-family:var(--mono); font-size:10px }
+  #side select { padding:6px 8px; border:1px solid var(--line); border-radius:0; background:#fff; font-size:11px }
+  #side select:focus-visible, #side input:focus-visible, #topbar button:focus-visible {
+    outline:2px solid var(--accent); outline-offset:2px
+  }
+  #side .help, #legend .lg p { color:var(--dim); font-size:11px; line-height:1.7 }
+  details#rules summary { font-family:var(--mono); font-size:10px }
+  .lv { border-radius:0; font-family:var(--mono); font-size:9px }
+  .lv1 { background:rgba(22,75,255,.14) }
+  .lv2 { background:rgba(230,0,135,.12) }
+  .lv3 { background:rgba(180,212,0,.24) }
+  .lv4 { background:rgba(23,26,31,.10) }
+  #topbar {
+    top:72px; min-height:56px; padding:8px 24px; gap:22px; background:rgba(255,255,255,.96);
+    border-bottom:1px solid var(--line); backdrop-filter:blur(12px)
+  }
+  #topbar button {
+    width:38px; height:34px; padding:0; border:1px solid var(--line); border-radius:0;
+    background:#fff; font-size:13px
+  }
+  #topbar button:hover { border-color:var(--accent); background:var(--accent); color:#fff }
+  #stats { color:var(--dim); font-family:var(--mono); font-size:9px; line-height:1.5 }
+  #content { max-width:46em; padding:52px 42px 100px; font-size:18px; line-height:2.05 }
+  #content.sans, #content.sans p { font-family:var(--sans) }
+  body.m-read .ai-rep[data-level="0"], body.m-read .ai-rep[data-level="1"] {
+    padding:0 2px; border-radius:0; background:rgba(22,75,255,.09)
+  }
+  body.m-read .ai-rep[data-level="3"] {
+    color:var(--accent); border-bottom:1px dotted rgba(22,75,255,.60)
+  }
+  body.m-debug .ai-rep { border-radius:0 }
+  body.m-debug .ai-rep[data-level="0"], body.m-debug .ai-rep[data-level="1"] { background:rgba(22,75,255,.16) }
+  body.m-debug .ai-rep[data-level="2"] { background:rgba(230,0,135,.12) }
+  body.m-debug .ai-rep[data-level="3"] { background:rgba(180,212,0,.26) }
+  body.m-debug .ai-rep[data-level="4"] { background:rgba(23,26,31,.10) }
+  @media (max-width:880px) {
+    #brandbar { grid-template-columns:1fr auto }
+    .playground-brand { border-right:0 }
+    #brandbar nav { gap:18px; padding:0 18px }
+    #brandbar nav a:first-child { display:none }
+    #app { display:block }
+    #side { position:static; width:auto; height:auto; border-right:0; border-bottom:1px solid var(--line) }
+    #topbar { top:72px }
+  }
+  @media (max-width:560px) {
+    #brandbar { position:static; min-height:64px }
+    .playground-brand { padding:0 14px }
+    .playground-brand small { display:none }
+    #brandbar nav { gap:13px; padding:0 14px }
+    #brandbar nav a { padding:24px 0; font-family:var(--mono); font-size:9px }
+    #brandbar nav a::after { bottom:17px }
+    #side { padding:24px 18px 36px }
+    #topbar { top:0; flex-wrap:wrap; gap:10px 16px; padding:10px 14px }
+    #stats { width:100% }
+    #content { padding:36px 20px 72px; font-size:17px }
+  }
 </style>
 </head>
 <body class="m-read gl-paren">
+<header id="brandbar">
+  <a class="playground-brand" href="https://weave.lexposer.com" aria-label="Lexweave website">
+    <svg viewBox="0 0 64 44" role="img" aria-label="Lexweave">
+      <g fill="none" stroke-linecap="round" stroke-width="6">
+        <path stroke="#164bff" d="M5 9h22m8 0h8m9 0h7"/><path stroke="#164bff" d="M5 22h14m28 0h12"/>
+        <path stroke="#b4d400" d="M27 22h12"/><path stroke="#164bff" d="M5 35h8m20 0h14"/>
+        <path stroke="#e60087" d="M20 35h6"/><path stroke="#b4d400" d="M54 35h5"/>
+      </g>
+    </svg>
+    <span><strong>LEXWEAVE</strong><small>CORE ENGINE BY LEXPOSER</small></span>
+  </a>
+  <nav aria-label="Lexweave navigation">
+    <a href="https://weave.lexposer.com">Website</a>
+    <a href="https://weave.lexposer.com/docs">Docs</a>
+    <a href="https://github.com/lexweave-hq/lexweave">GitHub</a>
+  </nav>
+</header>
+<div id="app">
 <aside id="side">
   <h1>${meta.title}</h1>
   <div class="meta">目标语言 ${meta.targetLanguage} ｜ 基础密度 ${meta.baseDensity} ｜ <span id="metaCounts"></span></div>
@@ -258,7 +388,7 @@ const html = `<!doctype html>
       <option value="none">无标记</option>
     </select>
   </div>
-  <p class="help">阅读态即产品语义：A1 蓝底最醒目 → A2 去底色 → A3 只剩绿色+虚线 → A4 与正文零差别。调试模式给四级各上底色（A1 蓝 / A2 青 / A3 绿 / A4 金），专查层级分布。</p>
+  <p class="help">阅读态即产品语义：A1 蓝底最醒目 → A2 去底色 → A3 只剩蓝色+虚线 → A4 与正文零差别。调试模式给四级分别使用 Lexweave 的蓝 / 粉 / 青柠 / 墨色，专查层级分布。</p>
   <div class="knob"><label>注释样式</label>
     <select id="glossStyle">
       <option value="paren">括号：灵石（spirit stone）</option>
@@ -294,7 +424,7 @@ const html = `<!doctype html>
     <div class="lg"><span class="tag">A2</span> <span class="sample"><span class="ai-rep" data-level="2" data-src="灵石"><span class="pri">spirit stone</span><span class="gl">灵石</span></span></span>
       <p>该词曝光（看到 + 被替换）≥3 次：翻转为译文为主，原文退成灰色小注，底色撤掉——存在感降一档。</p></div>
     <div class="lg"><span class="tag">A3</span> <span class="sample"><span class="ai-rep" data-level="3" data-src="灵石">spirit stone</span></span>
-      <p>该词熟练度 ≥1：注释消失只剩译文，绿色 + 虚线下划线是「可点按看原文」的最后提示。</p></div>
+      <p>该词熟练度 ≥1：注释消失只剩译文，蓝色 + 虚线下划线是「可点按看原文」的最后提示。</p></div>
     <div class="lg"><span class="tag">A4</span> <span class="sample"><span class="ai-rep" data-level="4" data-src="灵石">spirit stone</span></span>
       <p>熟练度 ≥2 进 A4、≥3 正式退休：<b>与正文零差别</b>，完全沉浸；不占密度/间距预算，点按＝回忆自测，永不回退原文。</p></div>
     <p class="help">A0＝未浮现（被资格筛选或密度挡下）；A5＝保留的整句扫掠层。</p>
@@ -316,6 +446,7 @@ const html = `<!doctype html>
     <div id="stats"></div>
   </div>
   <div id="content"></div>
+</div>
 </div>
 
 <script id="lx-data" type="application/json">${json({meta, pages, expressions})}</script>
