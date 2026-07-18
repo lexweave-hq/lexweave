@@ -1,36 +1,49 @@
 <div align="center">
 
-<img src="assets/wordmark.svg" alt="Lexweave" width="640"/>
+<img src="assets/readme-hero.svg" alt="Lexweave — compile the book once, shape every exposure" width="100%"/>
 
-**Turn any long-form text into a progressively bilingual learning edition.**
+[Quickstart](#quickstart) · [Architecture](#how-it-works) · [Packages](#packages) · [Live playground](https://lexweave-hq.github.io/lexweave/) · [GitHub](https://github.com/lexweave-hq/lexweave)
 
 [![CI](https://github.com/lexweave-hq/lexweave/actions/workflows/ci.yml/badge.svg)](https://github.com/lexweave-hq/lexweave/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/lexweave)](https://www.npmjs.com/package/lexweave)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)](https://nodejs.org)
 
-*Read the story you already love. Absorb the language you want.*
-
 </div>
-
----
 
 Lexweave is an open engine for **adaptive exposure substitution** — the modern,
 adaptive version of the classic [diglot weave](https://en.wikipedia.org/wiki/Diglot_weave)
-method. It compiles a novel (or any long text) into a structured asset **once**,
-then renders a personalized **graded reader** for every reader at read time:
-the book's own signature vocabulary is woven into the target language,
-progressively, at a density each reader can actually sustain.
+method. It compiles long-form text into a portable reading program **once**,
+then plans deterministic word, phrase, and sentence exposure for each reader
+without a read-time LLM.
 
-<div align="center">
-<img src="assets/reading-sample.svg" alt="The same sentence rendered at growing immersion levels (A1 fully glossed → A4 fully immersed) as the reader masters each word" width="720"/>
-</div>
+Compile time produces verified, verbatim units and a shareable
+`.lexweave.json` asset. Read time combines that asset with reader state and a
+flow budget; the same source, bundle, reader state, and parameters produce the
+same adaptive view.
 
-The reader keeps chasing the story. The engine controls the exposure. Every
-exposure updates the learner state. The next render adapts. That is the whole
-loop — **comprehensible input (i+1), operationalized**.
+## A real rule through the engine
 
-## Why this is not "sprinkle foreign words into text"
+<img src="assets/engine-contract.svg" alt="The Lexweave engine contract: bundle candidates and annotations pass through core planning into deterministic rendering, shown with the 灵石 to spirit stone test rule at action level A2" width="100%"/>
+
+The specimen above uses the checked-in `灵石` → `spirit stone` rule. The A1–A4
+display strings and the rendered spacing are asserted in
+[`packages/render/test/engine.test.cjs`](./packages/render/test/engine.test.cjs);
+the graphic does not imply an untested output.
+
+## Choose the boundary your product needs
+
+Start from the input object your product already owns. Each row names the
+minimum package surface and the output you can inspect.
+
+| Starting object | Package surface | Verifiable output |
+|---|---|---|
+| Raw long-form text | `@lexweave/compile` + `@lexweave/core` + `@lexweave/render` | Portable bundle, replacement plan, and rendered text |
+| Verified annotations | `@lexweave/core` + `@lexweave/render` | Reader state, deterministic rules, and rendered text |
+| Known replacement rules | `@lexweave/render` | Transformed HTML or plain text plus `appliedSources` |
+| A repository checkout | `lexweave` CLI | Compiled bundle, HTML reader, and inspection output |
+
+## A reading engine, not a text highlighter
 
 | Naive bilingual readers | Lexweave |
 |---|---|
@@ -39,15 +52,32 @@ loop — **comprehensible input (i+1), operationalized**.
 | Can obscure a clue or plot twist | **Plot-critical words are capped** to heavily-glossed levels — the reader never loses the thread |
 | LLM call per page per reader | **Compile once, render many** — reading never calls a model; cost is `O(book)`, not `O(readers × pages)` |
 
+## How it works
+
+```text
+                    COMPILE TIME · LLM ONCE
+book.txt ──► extract + verify units ──► .lexweave.json
+             words · phrases ·          portable asset
+             sentences · risk
+
+                    READ TIME · LOCAL + OFFLINE
+.lexweave.json + reader state ──► planner ──► renderer ──► adaptive view
+                                  │           │
+                                  │           └─ output + appliedSources
+                                  └─ from + to + level + retired + tier
+```
+
+Every extracted unit is a **verbatim span** located in the book by exact
+substring match. The same contract works for a word, phrase, or sentence.
+Learner state lives outside the portable bundle: the book asset is shareable;
+the reader's memory remains a separate object. See the
+[`Bundle` format specification](./packages/core/BUNDLE_SPEC.md).
+
 ## Quickstart
 
 ```bash
 git clone https://github.com/lexweave-hq/lexweave && cd lexweave
 npm install && npm run build
-
-# 60-second offline demo — no API key needed
-npm run demo
-open examples/demo/sample-book.html   # tap any highlighted word
 
 # compile your own book with a real model
 export ANTHROPIC_API_KEY=sk-...
@@ -57,18 +87,16 @@ node packages/cli/dist/lexweave.cjs inspect book.lexweave.json
 ```
 
 Providers: `--provider anthropic` (default) · `openai` · `mock` (offline,
-glossary-driven — used by the demo and CI).
+glossary-driven — used by deterministic tests).
 
 ### Debug playground
 
-**[▶ Try it live](https://lexweave-hq.github.io/lexweave/)** — a **real
-compile** (OpenAI gpt-4.1-mini, `--full` substrate) of the public-domain
-classic 西游记 (*Journey to the West*), chapters 1–2: 590 verbatim units,
-535/535 segments translated, base density 0.275 chosen by the model. Nothing
-hand-curated — drag 熟练度预览 up and watch the model's own sentence
-translations weave into the page. Text from Chinese Wikisource; bundle
-committed under [`examples/xiyouji/`](./examples/xiyouji), so
-`npm run pages:build` regenerates the page without an API key.
+**[▶ Try it live](https://lexweave-hq.github.io/lexweave/)** — a slice of the
+real `lexweave-cli-openai@1` compile of 凡人修仙传, beginning at chapter 131.
+The published HTML contains the complete first 1,000 chapters, the matching
+word layer from the full-book bundle, and 34 human-reviewed terminology
+corrections. The lower-confidence phrase and sentence layers remain in the
+compiled bundle but are excluded from the browser payload.
 
 One self-contained HTML page with every knob of the engine live: density,
 mastery preview, simulated-mastered words, the word → phrase → sentence ramp
@@ -78,47 +106,24 @@ the **real** planner + renderer bundled inline, so what you see is exactly
 what the CLI and an embedding app render. The sidebar documents each
 mechanism next to its slider.
 
-```bash
-npm run demo:debug
-open examples/demo/sample-book-debug.html
-```
-
-Point it at your own compiled book — e.g. a 凡人修仙传 (first 1000 chapters,
-~8M chars) full-translation substrate; `--slice-chars` keeps the page snappy
-by cutting a paragraph-aligned slice and its matching units:
+The checked-in page is generated from the local 凡人修仙传 source, bundle, and
+reviewed glossary. `--include-tiers word` keeps the browser payload responsive
+without cutting the book text:
 
 ```bash
 node scripts/debug-render.mjs books/fanren-1000.txt \
   --bundle books/fanren-1000.lexweave.json \
-  --slice-chars 40000 -o books/fanren-1000-debug.html
+  --glossary books/fanren-glossary.json \
+  --include-tiers word \
+  --default-phrases off --default-sentences off \
+  --title '凡人修仙传 · 前一千章' \
+  -o docs/index.html
 ```
 
 Generated pages stay local by design (`books/` is gitignored — book files are
 never committed). Every control round-trips through the URL
 (`?density=0.4&mastery=2&style=debug&gloss=inline`), so a specific
 configuration is one link to share.
-
-## How it works
-
-```
-                 COMPILE TIME (LLM, once per book)
- book.txt ──► chunk ──► extract reading units ──► verbatim scan ──► book.lexweave.json
-                        (word / phrase / sentence   (real frequency,     candidates
-                         + translation + risk        dispersion,         occurrences
-                         + plot-criticality)         exact offsets)      annotations
-                                                                         strategy
-                 READ TIME (no LLM, per reader, offline)
- learner state ──► flow budget ──► replacement plan ──► deterministic renderer
- (per-word mastery,  (density from   (which words, at     (HTML/text transform,
-  friction, speed)    live signals)   which A-level)       coverage + min-gap)
-```
-
-Every extracted unit is a **verbatim span** — located in the book by exact
-substring match. The same contract works for a single word and a whole
-sentence, so there are no templates and no alignment models. The compile
-artifact is a portable JSON bundle ([format spec](./packages/core/BUNDLE_SPEC.md));
-learner state deliberately lives outside it — the book asset is shareable,
-the reader's memory is theirs.
 
 ## Case study: a 1000-chapter novel
 
@@ -147,10 +152,8 @@ English (256 sentence frames admitted against 1,024 earned slots):
 
 <img src="assets/playground-ramped.png" alt="The same page after simulated progress: bare A4 words (disciple, effort), an A3 word with tap affordance, and a whole sentence flipped to English mid-dialogue; stats read 句 256/槽1024" width="900"/>
 
-These are static shots because hosting a copyrighted novel's text would break
-the books/ policy — but the **same playground runs live on a
-[real compile of *Journey to the West*](https://lexweave-hq.github.io/lexweave/)**
-(public domain), and one command points it at any book you compile yourself.
+The **same Fanren playground runs live** at
+[lexweave-hq.github.io/lexweave](https://lexweave-hq.github.io/lexweave/).
 
 ## Packages
 
@@ -202,8 +205,8 @@ the reader instead of following a fixed curriculum.
 Lexweave is a neutral tool, like ffmpeg. Bundles contain offsets, stats, and
 translations of extracted units — not the book text — but a bundle for a
 copyrighted work is still a derivative asset: keep it for personal use, or
-work with the rights holder. The demo and our test corpus use original and
-public-domain text.
+work with the rights holder. Keep source text and derived artifacts within the
+permissions granted for the work.
 
 **Why does reading never call an LLM?**
 Cost and latency both collapse the product if reading scales with model calls.

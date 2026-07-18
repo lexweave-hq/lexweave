@@ -9,7 +9,6 @@ git clone https://github.com/lexweave-hq/lexweave && cd lexweave
 npm install
 npm run build      # tsc -b for the packages + esbuild bundle for the CLI
 npm test           # node:test suites (core / compile / render)
-npm run demo       # offline end-to-end: mock compile → HTML render
 ```
 
 Requirements: Node ≥ 20. No global tooling — everything runs through npm
@@ -22,7 +21,6 @@ packages/core      engine: unit model, bundle format, planner, learner state
 packages/compile   compiler: chunking, verbatim scan, LLM job specs, passes
 packages/render    renderer: zero-dep replacement transform (HTML/text)
 packages/cli       lexweave CLI + Anthropic/OpenAI/mock providers
-examples/demo      offline demo corpus (original text + glossary)
 ```
 
 Design rules worth knowing before you open a PR:
@@ -40,9 +38,8 @@ Design rules worth knowing before you open a PR:
 
 - Unit tests live in `packages/*/test/*.test.cjs` and run against the built
   `dist/` via `node:test` (no test framework dependency).
-- The offline demo doubles as the e2e test (`npm run demo` + assertions in
-  CI). If you change replacement behavior, check the demo output by eye once:
-  `open examples/demo/sample-book.html`.
+- CI smoke-checks the published Fanren playground in `docs/index.html`. If you
+  change replacement behavior, inspect that page once in a browser.
 - Add a test with every behavior change. Bug fixes need a test that fails
   before the fix.
 

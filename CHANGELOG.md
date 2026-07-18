@@ -86,5 +86,5 @@ Initial public release.
 - **lexweave (CLI)** — `compile` / `render` / `inspect`; Anthropic, OpenAI,
   and offline mock providers; self-contained HTML learning editions with
   tap-to-reveal; `--mastery` preview of scaffolding decay.
-- Offline demo corpus (original xianxia short + glossary) and 24 node:test
+- Deterministic mock-provider coverage and 24 node:test
   cases.

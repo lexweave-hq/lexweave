@@ -35,6 +35,44 @@ const outPath = flags.get('out') ?? input.replace(/\.txt$/, '') + '-debug.html'
 let rawText = fs.readFileSync(input, 'utf8')
 const bundle = core.parseBookBundle(fs.readFileSync(bundlePath, 'utf8'))
 
+// Optional human-reviewed terminology overlay for a public showcase. The
+// source text, candidates, frequencies, salience, and full-translation
+// substrate still come from the compiled bundle; only exact glossary entries
+// replace their matching concept annotation's target text.
+let qualityOverrideCount = 0
+const glossaryPath = flags.get('glossary')
+if (glossaryPath) {
+  const glossary = JSON.parse(fs.readFileSync(glossaryPath, 'utf8'))
+  const entries = Array.isArray(glossary) ? glossary : glossary.entries
+  if (!Array.isArray(entries)) throw new Error(`invalid glossary: ${glossaryPath}`)
+  const candidateBySource = new Map(
+    bundle.candidates.map((candidate) => [candidate.sourceText, candidate])
+  )
+  const annotationByCanonical = new Map(
+    bundle.annotations.map((annotation) => [annotation.canonicalSource, annotation])
+  )
+  for (const entry of entries) {
+    const candidate = candidateBySource.get(entry.span)
+    const annotation = candidate && annotationByCanonical.get(candidate.conceptCanonical)
+    if (!annotation || typeof entry.translation !== 'string' || !entry.translation.trim()) continue
+    const targetLanguage = bundle.book.targetLanguage
+    const existing = annotation.translations.find((item) => item.targetLanguage === targetLanguage)
+    annotation.translations = [
+      ...annotation.translations.filter((item) => item.targetLanguage !== targetLanguage),
+      {
+        targetLanguage,
+        targetText: entry.translation.trim(),
+        register: existing?.register ?? 'plain',
+        confidence: 1,
+        notes: 'Human-reviewed playground terminology override',
+      },
+    ]
+    if (typeof entry.keepSource === 'boolean') annotation.shouldKeepSource = entry.keepSource
+    qualityOverrideCount += 1
+  }
+  console.error(`glossary: applied ${qualityOverrideCount}/${entries.length} exact terminology overrides`)
+}
+
 // --start-at <literal>: skip ebook front matter without creating a second
 // source file. The marker must exist so a typo cannot silently change content.
 const startAt = flags.get('start-at')
@@ -63,7 +101,34 @@ if (sliceChars > 0 && rawText.length > sliceChars) {
   )
 }
 
-const {expressions} = core.expressionsFromAssets(bundle.candidates, bundle.annotations)
+let {expressions} = core.expressionsFromAssets(bundle.candidates, bundle.annotations)
+
+// --include-tiers <word,phrase,sentence>: keep a full book browser-sized by
+// embedding only the requested replacement layers. The source text is never
+// cut by this option. This is useful for the public reader, where the reviewed
+// word layer is live while the much larger phrase/sentence substrate stays in
+// the compiled bundle for the native app and offline inspection.
+const validTiers = new Set(['word', 'phrase', 'sentence'])
+const expressionTier = (expression) =>
+  expression.kind === 'sentence_pattern'
+    ? 'sentence'
+    : expression.kind === 'phrase'
+      ? 'phrase'
+      : 'word'
+const includeTiersFlag = flags.get('include-tiers')
+const includeTiers = new Set(
+  includeTiersFlag
+    ? includeTiersFlag.split(',').map((tier) => tier.trim()).filter(Boolean)
+    : validTiers
+)
+for (const tier of includeTiers) {
+  if (!validTiers.has(tier)) throw new Error(`invalid tier in --include-tiers: ${tier}`)
+}
+if (includeTiersFlag) {
+  const before = expressions.length
+  expressions = expressions.filter((expression) => includeTiers.has(expressionTier(expression)))
+  console.error(`tiers: ${[...includeTiers].join(', ')}; units ${before} → ${expressions.length}`)
+}
 
 // Paginate on paragraph boundaries (~6000 chars/page) so the browser re-renders
 // one page per knob change instead of the whole book.
@@ -119,6 +184,19 @@ const meta = {
   title: flags.get('title') ?? bundle.book.title ?? path.basename(input),
   targetLanguage: bundle.book.targetLanguage,
   baseDensity: Math.round(bundle.strategy.baseDensity * 100) / 100,
+  producer: bundle.producer,
+  sampleStart: startAt ?? 'document start',
+  qualityOverrideCount,
+  availableTiers: {
+    word: includeTiers.has('word'),
+    phrase: includeTiers.has('phrase'),
+    sentence: includeTiers.has('sentence'),
+  },
+  defaultTiers: {
+    word: flags.get('default-words') !== 'off',
+    phrase: flags.get('default-phrases') !== 'off',
+    sentence: flags.get('default-sentences') !== 'off',
+  },
 }
 
 // ── page template ─────────────────────────────────────────────────────────────
@@ -359,7 +437,8 @@ const html = `<!doctype html>
 <div id="app">
 <aside id="side">
   <h1>${meta.title}</h1>
-  <div class="meta">目标语言 ${meta.targetLanguage} ｜ 基础密度 ${meta.baseDensity} ｜ <span id="metaCounts"></span></div>
+  <div class="meta">目标语言 ${meta.targetLanguage} ｜ 基础密度 ${meta.baseDensity} ｜ <span id="metaCounts"></span><br>
+    编译器 ${meta.producer} ｜ 起点 ${meta.sampleStart}${meta.qualityOverrideCount ? ` ｜ 人工术语校正 ${meta.qualityOverrideCount}` : ''}</div>
 
   <h2>参数</h2>
   <div class="knob"><label>密度</label><input id="density" type="range" min="0" max="1" step="0.01"><span class="val" id="densityVal"></span></div>
@@ -440,6 +519,7 @@ const html = `<!doctype html>
   <div id="topbar">
     <div class="pager" title="快捷键 ← →">
       <button id="prev">←</button>
+      <input id="pageJump" type="number" min="1" aria-label="页码">
       <span class="val" id="pageVal"></span>
       <button id="next">→</button>
     </div>
@@ -466,7 +546,7 @@ const html = `<!doctype html>
   const learnableIds = [...new Set(learnable.map((e) => e.id))]
   const exprBySource = new Map()
   for (const e of expressions) if (!exprBySource.has(e.sourceText)) exprBySource.set(e.sourceText, e)
-  $('metaCounts').textContent = pages.length + ' 页 · ' + expressions.length + ' 词单元'
+  $('metaCounts').textContent = pages.length + ' 页 · ' + expressions.length + ' 替换单元'
 
   // Shareable state:
   // ?density=0.5&mastery=2&mastered=20&page=37&style=debug&gloss=inline&force=3&anno=1&w=0&p=0&s=0&font=18&lh=2.2&ff=sans
@@ -484,7 +564,11 @@ const html = `<!doctype html>
     gloss: ['paren', 'inline', 'ruby'].includes(params.get('gloss')) ? params.get('gloss') : 'paren',
     forceLevel: ['1', '2', '3'].includes(params.get('force')) ? params.get('force') : '',
     anno: params.get('anno') === '1',
-    tiers: {word: params.get('w') !== '0', phrase: params.get('p') !== '0', sentence: params.get('s') !== '0'},
+    tiers: {
+      word: meta.availableTiers.word && (params.has('w') ? params.get('w') !== '0' : meta.defaultTiers.word),
+      phrase: meta.availableTiers.phrase && (params.has('p') ? params.get('p') !== '0' : meta.defaultTiers.phrase),
+      sentence: meta.availableTiers.sentence && (params.has('s') ? params.get('s') !== '0' : meta.defaultTiers.sentence),
+    },
     font: Math.min(24, Math.max(14, num('font', 17))),
     lh: Math.min(2.6, Math.max(1.5, num('lh', 1.95))),
     fontFamily: params.get('ff') === 'sans' ? 'sans' : 'serif',
@@ -500,6 +584,11 @@ const html = `<!doctype html>
   $('tw').checked = state.tiers.word
   $('tp').checked = state.tiers.phrase
   $('ts').checked = state.tiers.sentence
+  $('tw').disabled = !meta.availableTiers.word
+  $('tp').disabled = !meta.availableTiers.phrase
+  $('ts').disabled = !meta.availableTiers.sentence
+  $('pageJump').max = pages.length
+  $('pageJump').value = state.page + 1
   $('font').value = state.font
   $('lh').value = state.lh
   $('fontFamily').value = state.fontFamily
@@ -567,7 +656,8 @@ const html = `<!doctype html>
     $('densityVal').textContent = state.density.toFixed(2)
     $('masteryVal').textContent = '+' + state.mastery
     $('masteredVal').textContent = state.mastered + ' 词'
-    $('pageVal').textContent = (state.page + 1) + ' / ' + pages.length
+    $('pageJump').value = state.page + 1
+    $('pageVal').textContent = '/ ' + pages.length
     const tierCount = (t) => rules.filter((r) => !r.retired && r.tier === t).length
     $('stats').innerHTML = '规则 <b>' + rules.length + '</b>（词 ' + tierCount('word') +
       ' · 短语 ' + tierCount('phrase') + '/槽' + quotas.phrases +
@@ -623,6 +713,19 @@ const html = `<!doctype html>
   const go = (d) => { state.page = Math.min(pages.length - 1, Math.max(0, state.page + d)); schedule(); scrollTo(0, 0) }
   $('prev').addEventListener('click', () => go(-1))
   $('next').addEventListener('click', () => go(1))
+  const jumpToPage = (value) => {
+    const page = Number(value)
+    if (!Number.isFinite(page)) return
+    state.page = Math.min(pages.length - 1, Math.max(0, Math.round(page) - 1))
+    schedule()
+    scrollTo(0, 0)
+  }
+  $('pageJump').addEventListener('change', (e) => jumpToPage(e.target.value))
+  $('pageJump').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    jumpToPage(e.target.value)
+  })
   // Jump to the nearest page the CURRENT rule set actually touches — front matter
   // and sparse chapters otherwise make the sliders look inert. Surfaced as a link
   // in the stats line only when the current page has zero matches.

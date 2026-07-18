@@ -59,6 +59,14 @@ test('no pangu space before CJK punctuation', () => {
   assert.equal(output, '掏出 spirit stone，递给他')
 })
 
+test('spaces adjacent Latin replacements that came from separate Han spans', () => {
+  const {output} = transformText('修仙者修炼', [
+    {from: '修仙者', to: 'cultivator', level: 4},
+    {from: '修炼', to: 'cultivate', level: 4},
+  ])
+  assert.equal(output, 'cultivator cultivate')
+})
+
 test('minGap thins adjacent replacements', () => {
   const text = '灵石灵石灵石灵石灵石'
   const noGap = transformText(text, [{from: '灵石', to: 'ss', level: 3}])

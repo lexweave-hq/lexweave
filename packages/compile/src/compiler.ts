@@ -24,7 +24,7 @@ import {
 } from './units'
 
 export const DEFAULT_PRODUCER = 'lexweave-compile@1'
-// Measured (naval, gpt-4.1-mini): a model returns ~25 units per extraction
+// Large-book compile measurements: a model returns ~25 units per extraction
 // call REGARDLESS of chunk size, so smaller chunks = more calls = a bigger
 // unit pool for the same book (18k→8k roughly doubled words+phrases at ~equal
 // token cost). 8k balances yield against per-call overhead and serial latency.

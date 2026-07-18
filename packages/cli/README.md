@@ -7,10 +7,8 @@ lexweave inspect <bundle.json>
 ```
 
 - Providers: Anthropic (`ANTHROPIC_API_KEY`), OpenAI (`OPENAI_API_KEY`), and a
-  deterministic offline `mock` (`--glossary file.json`) for demos/tests.
+  deterministic offline `mock` (`--glossary file.json`) for tests.
 - `render` produces a self-contained HTML learning edition with tap-to-reveal,
   or plain text; `--mastery N` previews how the page sheds scaffolding as the
   reader learns.
 - Build: `node packages/cli/build.cjs` (esbuild single-file bundle).
-
-Offline demo: `examples/lexweave-demo/`.

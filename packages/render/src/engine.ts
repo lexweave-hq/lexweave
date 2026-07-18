@@ -152,11 +152,28 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
   const replaceTextRun = (text: string, budget: SectionBudget, applied: Set<string>): string => {
     let out = ''
     let last = '' // last visible (non-markup) char emitted, for pangu spacing
+    let lastWasReplacement = false
     let i = 0
-    const emit = (markup: string, firstChar: string, lastChar: string) => {
-      if (last && needsPanguSpace(last, firstChar)) out += ' '
+    const emit = (
+      markup: string,
+      firstChar: string,
+      lastChar: string,
+      isReplacement = false
+    ) => {
+      // Two adjacent Han source spans can both become bare Latin at A3/A4
+      // (修仙者修炼 -> cultivator cultivate). Pangu spacing only sees the
+      // rendered boundary, so add the word break when both sides came from
+      // replacements; ordinary Latin source text remains untouched.
+      if (
+        last &&
+        (needsPanguSpace(last, firstChar) ||
+          (lastWasReplacement && isReplacement && isLatinAlnum(last) && isLatinAlnum(firstChar)))
+      ) {
+        out += ' '
+      }
       out += markup
       last = lastChar
+      lastWasReplacement = isReplacement
     }
     while (i < text.length) {
       let matched: ReplacementRule | null = null
@@ -209,7 +226,8 @@ export function createReplacementEngine(options: ReplacementEngineOptions = {}):
             retired: !!matched.retired,
           }),
           display[0],
-          display[display.length - 1]
+          display[display.length - 1],
+          true
         )
         i += matched.from.length
       } else {

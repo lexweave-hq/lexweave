@@ -9,12 +9,7 @@
   "scripts": {
     "build": "tsc -b packages/tsconfig.json && node packages/cli/build.cjs",
     "test": "tsc -b packages/tsconfig.json && node --test packages/core/test/*.test.cjs packages/compile/test/*.test.cjs packages/render/test/*.test.cjs",
-    "typecheck:cli": "tsc -p packages/cli/tsconfig.json --noEmit",
-    "demo": "npm run demo:compile && npm run demo:render",
-    "demo:compile": "node packages/cli/dist/lexweave.cjs compile examples/demo/sample-book.txt --source zh --target en --provider mock --glossary examples/demo/glossary.json -o examples/demo/sample-book.lexweave.json",
-    "demo:render": "node packages/cli/dist/lexweave.cjs render examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o examples/demo/sample-book.html",
-    "demo:debug": "npm run demo:compile && node scripts/debug-render.mjs examples/demo/sample-book.txt --bundle examples/demo/sample-book.lexweave.json -o examples/demo/sample-book-debug.html",
-    "pages:build": "node scripts/debug-render.mjs examples/xiyouji/xiyouji-1-2.txt --bundle examples/xiyouji/xiyouji.lexweave.json -o docs/index.html"
+    "typecheck:cli": "tsc -p packages/cli/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

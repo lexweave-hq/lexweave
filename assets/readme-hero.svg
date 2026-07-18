@@ -1,0 +1,60 @@
+<svg width="1200" height="480" viewBox="0 0 1200 480" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Lexweave — compile the book once, shape every exposure</title>
+  <desc id="desc">Lexweave brand banner using the blue, pink and lime exposure marks from the Lexweave website.</desc>
+  <rect x="0.5" y="0.5" width="1199" height="479" fill="white" stroke="#D9DCE0"/>
+
+  <g transform="translate(48 30)" stroke-linecap="round" stroke-width="5">
+    <path stroke="#164BFF" d="M0 5h23m9 0h9m10 0h8"/>
+    <path stroke="#164BFF" d="M0 18h15m32 0h12"/>
+    <path stroke="#B4D400" d="M23 18h14"/>
+    <path stroke="#164BFF" d="M0 31h9m27 0h14"/>
+    <path stroke="#E60087" d="M17 31h8"/>
+    <path stroke="#B4D400" d="M56 31h3"/>
+  </g>
+  <text x="123" y="49" fill="#171A1F" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="1.4">LEXWEAVE</text>
+  <text x="123" y="67" fill="#656970" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="9" letter-spacing="1.1">CORE ENGINE BY LEXPOSER</text>
+  <text x="1148" y="54" fill="#656970" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10" text-anchor="end" letter-spacing="1.1">OPEN SOURCE · APACHE-2.0</text>
+  <line x1="48" y1="88" x2="1152" y2="88" stroke="#D9DCE0"/>
+
+  <text x="48" y="171" fill="#171A1F" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="500" letter-spacing="-1.8">Compile the book once.</text>
+  <text x="48" y="235" fill="#171A1F" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="500" letter-spacing="-1.8">Shape every exposure.</text>
+  <text x="50" y="284" fill="#656970" font-family="Arial, Helvetica, sans-serif" font-size="17">A portable reading program for deterministic word, phrase and sentence exposure—</text>
+  <text x="50" y="310" fill="#656970" font-family="Arial, Helvetica, sans-serif" font-size="17">personalized for each reader without a read-time LLM.</text>
+
+  <g transform="translate(880 143)" stroke-linecap="round" stroke-width="18">
+    <path stroke="#164BFF" d="M0 0h81m21 0h35m22 0h36"/>
+    <path stroke="#164BFF" d="M0 45h57m142 0h28"/>
+    <path stroke="#B4D400" d="M84 45h60"/>
+    <path stroke="#164BFF" d="M0 90h34m92 0h75"/>
+    <path stroke="#E60087" d="M59 90h42"/>
+    <path stroke="#B4D400" d="M226 90h20"/>
+  </g>
+  <text x="1003" y="263" fill="#656970" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="9" text-anchor="middle" letter-spacing="1.2">THREE LINES · MANY READING STATES</text>
+
+  <line x1="48" y1="354" x2="1152" y2="354" stroke="#D9DCE0"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <g transform="translate(48 381)">
+      <text fill="#164BFF" font-size="9" font-weight="700">01 · COMPILE ONCE</text>
+      <text y="25" fill="#171A1F" font-size="12">structure · units</text>
+    </g>
+    <path d="M285 396h46" stroke="#164BFF"/>
+    <path d="m326 391 5 5-5 5" stroke="#164BFF"/>
+    <g transform="translate(358 381)">
+      <text fill="#E60087" font-size="9" font-weight="700">02 · PORTABLE ASSET</text>
+      <text y="25" fill="#171A1F" font-size="12">.lexweave.json</text>
+    </g>
+    <path d="M599 396h46" stroke="#E60087"/>
+    <path d="m640 391 5 5-5 5" stroke="#E60087"/>
+    <g transform="translate(672 381)">
+      <text fill="#789000" font-size="9" font-weight="700">03 · PLAN LOCALLY</text>
+      <text y="25" fill="#171A1F" font-size="12">reader state</text>
+    </g>
+    <path d="M880 396h46" stroke="#789000"/>
+    <path d="m921 391 5 5-5 5" stroke="#789000"/>
+    <g transform="translate(953 381)">
+      <text fill="#164BFF" font-size="9" font-weight="700">04 · RENDER OFFLINE</text>
+      <text y="25" fill="#171A1F" font-size="12">adaptive view</text>
+    </g>
+  </g>
+  <line x1="48" y1="446" x2="1152" y2="446" stroke="#ECEEF0"/>
+</svg>

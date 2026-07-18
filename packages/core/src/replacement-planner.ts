@@ -8,6 +8,7 @@ import {
   type UnitTier,
 } from './flow-budget'
 import {isFunctionWord} from './stopwords'
+import {SubstringIndex} from './substring-index'
 import type {
   ActionLevel,
   Expression,
@@ -197,15 +198,27 @@ export function planReplacements(
   // longer selected source (秘学⊂神秘学, 卜家⊂占卜家) is a slice of that word, not
   // a word of its own. A frequent standalone (占卜, which appears far more often
   // than 占卜家) survives because the longer word accounts for only part of it.
-  let kept = eligible.filter(
-    (pair) =>
-      !eligible.some(
-        (longer) =>
-          longer.from.length > pair.from.length &&
-          longer.from.includes(pair.from) &&
-          longer.frequency >= pair.frequency * SUBSTRING_DOMINANCE
-      )
-  )
+  //
+  // Indexed (Aho–Corasick) instead of pairwise includes(): with a full-book
+  // substrate this list is ~90k units and O(n²) took minutes on-device. Only
+  // word/phrase units can BE fragments — a whole sentence is never an n-gram
+  // slice — while any longer unit (including a substrate sentence) dominates.
+  const fragmentPairs = eligible.filter((pair) => pair.tier !== 'sentence')
+  const fragmentIndex = new SubstringIndex(fragmentPairs.map((pair) => pair.from))
+  const dominated = new Set<(typeof eligible)[number]>()
+  for (const longer of eligible) {
+    for (const patternId of fragmentIndex.matchedPatternIds(longer.from)) {
+      const pair = fragmentPairs[patternId]
+      if (
+        !dominated.has(pair) &&
+        longer.from.length > pair.from.length &&
+        longer.frequency >= pair.frequency * SUBSTRING_DOMINANCE
+      ) {
+        dominated.add(pair)
+      }
+    }
+  }
+  let kept = eligible.filter((pair) => !dominated.has(pair))
 
   // Flow-first, per tier. Density governs how many DISTINCT units are being
   // LEARNED at once; each then replaces at every occurrence so it repeats
@@ -229,16 +242,22 @@ export function planReplacements(
   const knownSources = kept
     .filter((pair) => pair.tier !== 'sentence' && (pair.retired || pair.level >= 3))
     .map((pair) => pair.from)
+  // Indexed for the same reason as the fragment filter: this runs for every
+  // learning phrase/sentence, and a mostly-mastered reader has thousands of
+  // known sources. Per pattern we keep non-overlapping matches (greedy in text
+  // order), matching the previous indexOf walk exactly.
+  const readinessIndex = knownSources.length ? new SubstringIndex(knownSources) : null
   const readinessOf = (text: string): number => {
-    if (knownSources.length === 0 || text.length === 0) {
+    if (!readinessIndex || text.length === 0) {
       return 0
     }
     let covered = 0
-    for (const source of knownSources) {
-      let at = text.indexOf(source)
-      while (at !== -1) {
-        covered += source.length
-        at = text.indexOf(source, at + source.length)
+    const lastEnd = new Map<number, number>()
+    for (const {patternId, end} of readinessIndex.matches(text)) {
+      const length = readinessIndex.patterns[patternId].length
+      if (end - length >= (lastEnd.get(patternId) ?? 0)) {
+        covered += length
+        lastEnd.set(patternId, end)
       }
     }
     return Math.min(1, covered / text.length)

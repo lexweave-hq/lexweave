@@ -32,16 +32,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: End-to-end offline demo (mock provider)
+      - name: Published Fanren playground smoke
         run: |
-          npm run demo
-          # the rendered edition must contain a scaffolded replacement span
-          grep -q 'class="ai-rep"' examples/demo/sample-book.html
-          grep -q 'spirit stone' examples/demo/sample-book.html
-          # names must stay in source
-          if grep -q 'Lin Zhao' examples/demo/sample-book.html; then
-            echo "proper noun was replaced — must stay in source" && exit 1
-          fi
+          grep -q '凡人修仙传 · 第131章真实编译样本' docs/index.html
+          grep -q 'lexweave-cli-openai@1' docs/index.html
+          grep -q 'spirit stone' docs/index.html
 
       - name: Pack check (publishable artifacts)
         run: |

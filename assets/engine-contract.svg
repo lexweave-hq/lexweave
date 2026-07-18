@@ -1,0 +1,106 @@
+<svg width="1200" height="650" viewBox="0 0 1200 650" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">A real replacement rule through the Lexweave engine</title>
+  <desc id="desc">The bundle passes candidates and annotations to core planning, then render transforms a Chinese sentence using the A2 action level.</desc>
+  <rect x="0.5" y="0.5" width="1199" height="649" fill="white" stroke="#D9DCE0"/>
+  <style>
+    .sans { font-family: Arial, Helvetica, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .ink { fill: #171A1F; }
+    .muted { fill: #656970; }
+    .blue { fill: #164BFF; }
+    .rule { stroke: #D9DCE0; }
+  </style>
+
+  <text x="34" y="38" class="mono ink" font-size="11" font-weight="700" letter-spacing=".6">A REAL RULE THROUGH THE ENGINE</text>
+  <text x="34" y="59" class="mono muted" font-size="9">VERIFIED AGAINST packages/render/test/engine.test.cjs</text>
+  <text x="610" y="39" class="sans ink" font-size="14">The checked-in rule replaces 灵石 with spirit stone.</text>
+  <text x="610" y="61" class="sans muted" font-size="13">The action level controls the exact scaffold visible to the reader.</text>
+  <line x1="34" y1="83" x2="1166" y2="83" class="rule"/>
+
+  <g class="mono">
+    <g transform="translate(34 103)">
+      <text class="blue" font-size="8" font-weight="700">BUNDLE</text>
+      <text y="25" class="ink" font-size="11">candidates + annotations</text>
+    </g>
+    <path d="M260 121h40" stroke="#656970"/>
+    <path d="m295 116 5 5-5 5" stroke="#656970"/>
+    <g transform="translate(326 103)">
+      <text class="blue" font-size="8" font-weight="700">CORE</text>
+      <text y="25" class="ink" font-size="11">expressionsFromAssets()</text>
+    </g>
+    <path d="M536 121h40" stroke="#656970"/>
+    <path d="m571 116 5 5-5 5" stroke="#656970"/>
+    <g transform="translate(602 103)">
+      <text class="blue" font-size="8" font-weight="700">CORE</text>
+      <text y="25" class="ink" font-size="11">planReplacements()</text>
+    </g>
+    <path d="M812 121h40" stroke="#656970"/>
+    <path d="m847 116 5 5-5 5" stroke="#656970"/>
+    <g transform="translate(878 103)">
+      <text class="blue" font-size="8" font-weight="700">RENDER</text>
+      <text y="25" class="ink" font-size="11">transformSection()</text>
+    </g>
+  </g>
+  <line x1="34" y1="151" x2="1166" y2="151" class="rule"/>
+
+  <line x1="520" y1="151" x2="520" y2="542" class="rule"/>
+  <text x="34" y="184" class="mono ink" font-size="10" font-weight="700">REPLACEMENT RULE</text>
+  <text x="486" y="184" class="mono muted" font-size="9" text-anchor="end">@lexweave/core</text>
+  <rect x="34.5" y="205.5" width="451" height="205" fill="#F7F7F7" stroke="#D9DCE0"/>
+  <g class="mono ink" font-size="15">
+    <text x="62" y="241">{</text>
+    <text x="78" y="270">from: '灵石',</text>
+    <text x="78" y="299">to: 'spirit stone',</text>
+    <text x="78" y="328">level: 2,</text>
+    <text x="78" y="357">tier: 'word'</text>
+    <text x="62" y="386">}</text>
+  </g>
+  <text x="34" y="447" class="mono muted" font-size="9">FLOW BUDGET</text>
+  <text x="168" y="447" class="sans ink" font-size="12">selects which rules surface</text>
+  <line x1="34" y1="464" x2="486" y2="464" class="rule"/>
+  <text x="34" y="493" class="mono muted" font-size="9">ACTION LEVEL</text>
+  <text x="168" y="493" class="sans ink" font-size="12">controls visible scaffolding</text>
+
+  <text x="552" y="184" class="mono ink" font-size="10" font-weight="700">LEVEL DISPLAY</text>
+  <text x="1134" y="184" class="mono muted" font-size="9" text-anchor="end">@lexweave/render</text>
+  <g transform="translate(552 205)">
+    <rect x=".5" y=".5" width="140" height="77" fill="white" stroke="#D9DCE0"/>
+    <text x="12" y="24" class="mono ink" font-size="12" font-weight="700">A1</text>
+    <text x="12" y="46" class="sans muted" font-size="9">Source primary</text>
+    <text x="12" y="61" class="sans muted" font-size="9">target gloss visible</text>
+  </g>
+  <g transform="translate(699 205)">
+    <rect x=".5" y=".5" width="140" height="77" fill="#164BFF" stroke="#164BFF"/>
+    <text x="12" y="24" fill="white" class="mono" font-size="12" font-weight="700">A2</text>
+    <text x="12" y="46" fill="white" class="sans" font-size="9">Target primary</text>
+    <text x="12" y="61" fill="white" class="sans" font-size="9">source gloss visible</text>
+  </g>
+  <g transform="translate(846 205)">
+    <rect x=".5" y=".5" width="140" height="77" fill="white" stroke="#D9DCE0"/>
+    <text x="12" y="24" class="mono ink" font-size="12" font-weight="700">A3</text>
+    <text x="12" y="46" class="sans muted" font-size="9">Target only</text>
+    <text x="12" y="61" class="sans muted" font-size="9">tap reveals source</text>
+  </g>
+  <g transform="translate(993 205)">
+    <rect x=".5" y=".5" width="140" height="77" fill="white" stroke="#D9DCE0"/>
+    <text x="12" y="24" class="mono ink" font-size="12" font-weight="700">A4</text>
+    <text x="12" y="46" class="sans muted" font-size="9">Bare target</text>
+    <text x="12" y="61" class="sans muted" font-size="9">no scaffold</text>
+  </g>
+  <rect x="552.5" y="297.5" width="581" height="172" fill="#F2F5FF" stroke="#D9DCE0"/>
+  <text x="578" y="329" class="mono muted" font-size="9">transformText('三块灵石在桌上', rules)</text>
+  <text x="578" y="385" class="sans ink" font-size="25">三块 <tspan fill="#164BFF" font-weight="700" text-decoration="underline">spirit stone（灵石）</tspan> 在桌上</text>
+  <text x="578" y="433" class="sans muted" font-size="11">Target primary · source gloss visible</text>
+
+  <line x1="34" y1="542" x2="1166" y2="542" class="rule"/>
+  <line x1="402" y1="542" x2="402" y2="622" class="rule"/>
+  <line x1="784" y1="542" x2="784" y2="622" class="rule"/>
+  <g class="mono">
+    <text x="34" y="571" class="ink" font-size="9" font-weight="700">PLANNER INPUT</text>
+    <text x="34" y="594" class="muted" font-size="9">ReadingMemory + metrics + bundle strategy</text>
+    <text x="432" y="571" class="ink" font-size="9" font-weight="700">PLANNER OUTPUT</text>
+    <text x="432" y="594" class="muted" font-size="9">from + to + level + retired + tier</text>
+    <text x="814" y="571" class="ink" font-size="9" font-weight="700">RENDERER OUTPUT</text>
+    <text x="814" y="594" class="muted" font-size="9">output + appliedSources</text>
+  </g>
+</svg>
